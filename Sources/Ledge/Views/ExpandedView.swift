@@ -51,6 +51,7 @@ struct ExpandedView: View {
         case .caffeine:   CaffeineModule()
         case .shortcuts:  ShortcutsModule()
         case .camera:     CameraModule()
+        case .teleprompter: TeleprompterModule()
         }
     }
 

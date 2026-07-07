@@ -20,6 +20,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
     case caffeine
     case shortcuts
     case camera
+    case teleprompter
 
     var id: String { rawValue }
 
@@ -42,6 +43,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .caffeine:   "Caffeine"
         case .shortcuts:  "Shortcuts"
         case .camera:     "Mirror"
+        case .teleprompter: "Teleprompter"
         }
     }
 
@@ -64,6 +66,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .caffeine:   "cup.and.saucer.fill"
         case .shortcuts:  "square.grid.2x2"
         case .camera:     "camera"
+        case .teleprompter: "text.viewfinder"
         }
     }
 
@@ -87,6 +90,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .caffeine:   "Keep your Mac awake"
         case .shortcuts:  "Pinned app launcher"
         case .camera:     "Front-camera mirror"
+        case .teleprompter: "Scrolling script reader"
         }
     }
 }
@@ -150,6 +154,7 @@ final class AppState {
     let caffeine = CaffeineModel()
     let shortcuts = ShortcutsModel()
     let camera = CameraModel()
+    let teleprompter = TeleprompterModel()
     let audioOutput = AudioOutputModel()
 
     private var didStartModules = false

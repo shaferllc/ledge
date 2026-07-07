@@ -37,6 +37,7 @@ enum SelfTest {
         app.notes.text = "• ship Ledge v0.3\n• tune spring"
         app.countdown.setDuration(600)
         app.caffeine.activate()
+        app.teleprompter.script = "Welcome to Ledge.\nYour notch is now a teleprompter — read your script while looking right at the camera, and nudge the speed on the fly."
 
         // Render the module row directly (ImageRenderer doesn't snapshot the
         // ScrollView ExpandedView uses at runtime, so we lay the cards out flat).
@@ -53,6 +54,7 @@ enum SelfTest {
                 CountdownModule()
                 CaffeineModule()
                 ShortcutsModule()
+                TeleprompterModule()
                 ClipboardModule()
                 BluetoothModule()
             }
