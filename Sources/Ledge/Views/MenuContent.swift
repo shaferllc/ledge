@@ -3,6 +3,7 @@ import ServiceManagement
 
 /// The menu shown from the menu-bar icon.
 struct MenuContent: View {
+    @Environment(\.openSettings) private var openSettings
     private let controller = NotchController.shared
     private let app = AppState.shared
 
@@ -20,8 +21,17 @@ struct MenuContent: View {
 
         Divider()
 
-        SettingsLink {
-            Text("Settings…")
+        // A background (.accessory) app doesn't come forward on its own, so
+        // activate and raise the Settings window explicitly.
+        Button("Settings…") {
+            NSApp.activate(ignoringOtherApps: true)
+            openSettings()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                for window in NSApp.windows where window.styleMask.contains(.titled) {
+                    window.makeKeyAndOrderFront(nil)
+                    window.orderFrontRegardless()
+                }
+            }
         }
         .keyboardShortcut(",")
 

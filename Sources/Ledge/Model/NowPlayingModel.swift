@@ -92,14 +92,14 @@ final class NowPlayingModel {
         let script = """
         if application "Spotify" is running then
           tell application "Spotify"
-            set st to (player state as string)
+            set pstate to (player state as string)
             set n to name of current track
             set a to artist of current track
             set al to album of current track
             set art to artwork url of current track
             set pos to player position
             set dur to (duration of current track) / 1000
-            return st & "\\n" & n & "\\n" & a & "\\n" & al & "\\n" & art & "\\n" & pos & "\\n" & dur
+            return pstate & "\\n" & n & "\\n" & a & "\\n" & al & "\\n" & art & "\\n" & pos & "\\n" & dur
           end tell
         end if
         """
@@ -118,13 +118,13 @@ final class NowPlayingModel {
         if application "Music" is running then
           tell application "Music"
             if player state is stopped then return ""
-            set st to (player state as string)
+            set pstate to (player state as string)
             set n to name of current track
             set a to artist of current track
             set al to album of current track
             set pos to player position
             set dur to duration of current track
-            return st & "\\n" & n & "\\n" & a & "\\n" & al & "\\n" & pos & "\\n" & dur
+            return pstate & "\\n" & n & "\\n" & a & "\\n" & al & "\\n" & pos & "\\n" & dur
           end tell
         end if
         """
