@@ -116,10 +116,26 @@ final class NotchController {
 
     private func resolveGeometry() -> NotchGeometry {
         let size = AppState.shared.panelSize
-        if let notched = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) {
-            return NotchGeometry(screen: notched, panelSize: size)
+        let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })
+            ?? NSScreen.main ?? NSScreen.screens[0]
+        return NotchGeometry(screen: screen, panelSize: size, contentWidth: fittedContentWidth())
+    }
+
+    /// Total width needed to lay the enabled modules in a 2-row grid: pair them
+    /// column-major and sum each column's wider card, plus gaps and padding.
+    private func fittedContentWidth() -> CGFloat {
+        let modules = AppState.shared.activeModules
+        guard !modules.isEmpty else { return 380 }
+        var columns: [CGFloat] = []
+        var i = 0
+        while i < modules.count {
+            let w1 = modules[i].cardWidth
+            let w2 = i + 1 < modules.count ? modules[i + 1].cardWidth : 0
+            columns.append(max(w1, w2))
+            i += 2
         }
-        return NotchGeometry(screen: NSScreen.main ?? NSScreen.screens[0], panelSize: size)
+        let gaps = CGFloat(max(0, columns.count - 1)) * 10
+        return columns.reduce(0, +) + gaps + 2 * 18 + 4   // + horizontal padding
     }
 
     // MARK: Expansion

@@ -13,7 +13,7 @@ struct NotchGeometry {
     let expandedWidth: CGFloat
     let expandedHeight: CGFloat
 
-    init(screen: NSScreen, panelSize: PanelSize = .medium) {
+    init(screen: NSScreen, panelSize: PanelSize = .medium, contentWidth: CGFloat? = nil) {
         self.screen = screen
 
         let inset = screen.safeAreaInsets.top
@@ -30,7 +30,10 @@ struct NotchGeometry {
             self.notchWidth = Self.fallbackNotchWidth
         }
 
-        self.expandedWidth = panelSize.width
+        // Fit the panel to the enabled modules (falls back to the preset width),
+        // clamped so it never exceeds the screen.
+        let desired = contentWidth ?? panelSize.width
+        self.expandedWidth = min(max(desired, 360), screen.frame.width - 40)
         // Header (30) + two module rows + inter-row gap + dock (54) + paddings,
         // all hanging below the physical notch.
         self.expandedHeight = self.notchHeight + 30 + 2 * panelSize.moduleHeight + 10 + 54 + 40
