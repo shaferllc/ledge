@@ -1,23 +1,27 @@
 import SwiftUI
 
-/// The dashboard shown while hovering: the enabled modules in a row. Scrolls
-/// horizontally if the user enables more than fit the notch width.
+/// The expanded dashboard: a header bar, the enabled modules laid out in a
+/// 2-row grid (scrolls horizontally if they overflow), and a dock of circular
+/// icon buttons — mirroring MacNotch's layout.
 struct ExpandedView: View {
     @Environment(AppState.self) private var app
 
-    /// Fallback module-row height (the self-test and any code without an
-    /// AppState use this). At runtime the panel-size preset drives it.
-    static let moduleHeight: CGFloat = 156
+    /// Fallback row height for the self-test / previews.
+    static let moduleHeight: CGFloat = 132
 
     var body: some View {
         let modules = app.activeModules
         let rowHeight = app.panelSize.moduleHeight
-        Group {
+        VStack(spacing: 8) {
+            DashboardHeader()
+
             if modules.isEmpty {
                 emptyState
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
+                    LazyHGrid(rows: [GridItem(.fixed(rowHeight), spacing: 10),
+                                     GridItem(.fixed(rowHeight), spacing: 10)],
+                              spacing: 10) {
                         ForEach(modules) { module in
                             view(for: module)
                                 .frame(height: rowHeight)
@@ -25,9 +29,12 @@ struct ExpandedView: View {
                     }
                     .padding(.horizontal, 2)
                 }
-                .frame(height: rowHeight)
+                .frame(height: 2 * rowHeight + 10)
                 .scrollClipDisabled()
             }
+
+            Spacer(minLength: 0)
+            ModuleDock()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }

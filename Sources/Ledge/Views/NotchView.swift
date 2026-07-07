@@ -16,15 +16,14 @@ struct NotchView: View {
 
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
-                NotchShape(bottomRadius: radius)
-                    .fill(.black)
+                background(expanded: expanded, radius: radius)
                     .overlay(
                         NotchShape(bottomRadius: radius)
                             .stroke(dropTargeted ? app.accentColor.opacity(0.9)
-                                                 : Color.white.opacity(expanded ? 0.10 : 0),
+                                                 : Color.white.opacity(expanded ? 0.12 : 0),
                                     lineWidth: dropTargeted ? 1.5 : 0.5)
                     )
-                    .shadow(color: .black.opacity(expanded ? 0.45 : 0), radius: 12, y: 6)
+                    .shadow(color: .black.opacity(expanded ? 0.5 : 0), radius: 16, y: 8)
 
                 content(expanded: expanded)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -52,12 +51,27 @@ struct NotchView: View {
         .environment(app)
     }
 
+    /// Collapsed = solid black (blends with the physical notch); expanded = a
+    /// dark translucent panel that lets the wallpaper faintly through, like
+    /// MacNotch.
+    @ViewBuilder private func background(expanded: Bool, radius: CGFloat) -> some View {
+        if expanded {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(Color.black.opacity(0.55))
+            }
+            .clipShape(NotchShape(bottomRadius: radius))
+        } else {
+            NotchShape(bottomRadius: radius).fill(.black)
+        }
+    }
+
     @ViewBuilder private func content(expanded: Bool) -> some View {
         if expanded {
             ExpandedView()
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 18)
                 .padding(.top, notchInset)
-                .padding(.bottom, 14)
+                .padding(.bottom, 12)
         } else {
             CollapsedView()
         }

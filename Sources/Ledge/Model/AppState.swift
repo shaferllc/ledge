@@ -100,8 +100,9 @@ enum PanelSize: String, CaseIterable, Identifiable, Codable {
     case small, medium, large
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
-    var width: CGFloat { self == .small ? 520 : self == .medium ? 600 : 720 }
-    var moduleHeight: CGFloat { self == .small ? 140 : self == .medium ? 156 : 176 }
+    var width: CGFloat { self == .small ? 800 : self == .medium ? 940 : 1080 }
+    /// Height of one row in the 2-row module grid.
+    var moduleHeight: CGFloat { self == .small ? 120 : self == .medium ? 132 : 150 }
 }
 
 /// Global, observable app state. A singleton so the MenuBarExtra, Settings

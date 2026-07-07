@@ -31,8 +31,13 @@ struct NotchGeometry {
         }
 
         self.expandedWidth = panelSize.width
-        self.expandedHeight = self.notchHeight + panelSize.moduleHeight + 22
+        // Header (30) + two module rows + inter-row gap + dock (54) + paddings,
+        // all hanging below the physical notch.
+        self.expandedHeight = self.notchHeight + 30 + 2 * panelSize.moduleHeight + 10 + 54 + 40
     }
+
+    static let headerHeight: CGFloat = 30
+    static let dockHeight: CGFloat = 54
 
     // Sizes of the black notch SHAPE in each state (the window itself stays
     // fixed at `expandedFrame`; only the shape animates).
