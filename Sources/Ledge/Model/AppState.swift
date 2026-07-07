@@ -70,31 +70,6 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Width of this module's card (must match the view's `.frame(width:)`), so
-    /// the panel can size itself to fit the enabled modules.
-    var cardWidth: CGFloat {
-        switch self {
-        case .nowPlaying:   244
-        case .shelf:        196
-        case .calendar:     214
-        case .weather:      178
-        case .system:       176
-        case .clipboard:    214
-        case .bluetooth:    186
-        case .pomodoro:     148
-        case .stopwatch:    168
-        case .countdown:    152
-        case .notes:        210
-        case .worldClock:   194
-        case .network:      178
-        case .storage:      178
-        case .caffeine:     150
-        case .shortcuts:    194
-        case .camera:       178
-        case .teleprompter: 320
-        }
-    }
-
     /// A short description shown in the settings module list.
     var blurb: String {
         switch self {
@@ -125,9 +100,8 @@ enum PanelSize: String, CaseIterable, Identifiable, Codable {
     case small, medium, large
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
-    var width: CGFloat { self == .small ? 800 : self == .medium ? 940 : 1080 }
-    /// Height of one row in the 2-row module grid.
-    var moduleHeight: CGFloat { self == .small ? 120 : self == .medium ? 132 : 150 }
+    var width: CGFloat { self == .small ? 520 : self == .medium ? 600 : 720 }
+    var moduleHeight: CGFloat { self == .small ? 140 : self == .medium ? 156 : 176 }
 }
 
 /// Global, observable app state. A singleton so the MenuBarExtra, Settings
@@ -138,10 +112,10 @@ final class AppState {
     static let shared = AppState()
 
     // Persisted user settings.
-    var enabledModules: Set<Module> { didSet { persistModules(); onLayoutChange?() } }
+    var enabledModules: Set<Module> { didSet { persistModules() } }
 
     /// User-controlled left-to-right order of modules.
-    var moduleOrder: [Module] { didSet { persistOrder(); onLayoutChange?() } }
+    var moduleOrder: [Module] { didSet { persistOrder() } }
 
     var showOnNonNotchDisplays: Bool {
         didSet { UserDefaults.standard.set(showOnNonNotchDisplays, forKey: "showOnNonNotchDisplays") }

@@ -13,7 +13,7 @@ struct NotchGeometry {
     let expandedWidth: CGFloat
     let expandedHeight: CGFloat
 
-    init(screen: NSScreen, panelSize: PanelSize = .medium, contentWidth: CGFloat? = nil) {
+    init(screen: NSScreen, panelSize: PanelSize = .medium) {
         self.screen = screen
 
         let inset = screen.safeAreaInsets.top
@@ -30,18 +30,9 @@ struct NotchGeometry {
             self.notchWidth = Self.fallbackNotchWidth
         }
 
-        // Shrink to fit when there are few modules, but never grow past the
-        // preset width — the panel stays contained (and the grid scrolls) like
-        // MacNotch, rather than sprawling across the whole screen.
-        let desired = min(contentWidth ?? panelSize.width, panelSize.width)
-        self.expandedWidth = min(max(desired, 360), screen.frame.width - 40)
-        // Header (30) + two module rows + inter-row gap + dock (54) + paddings,
-        // all hanging below the physical notch.
-        self.expandedHeight = self.notchHeight + 30 + 2 * panelSize.moduleHeight + 10 + 54 + 40
+        self.expandedWidth = panelSize.width
+        self.expandedHeight = self.notchHeight + panelSize.moduleHeight + 22
     }
-
-    static let headerHeight: CGFloat = 30
-    static let dockHeight: CGFloat = 54
 
     // Sizes of the black notch SHAPE in each state (the window itself stays
     // fixed at `expandedFrame`; only the shape animates).
