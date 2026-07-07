@@ -41,6 +41,7 @@ struct CollapsedView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Volume HUD (below the notch)

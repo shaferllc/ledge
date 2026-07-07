@@ -30,6 +30,7 @@ final class NotchController {
     private var collapsedTimer: Timer?
     private let volumeWatcher = VolumeWatcher()
     private var suppressFirstHUD = true
+    private var debugLocked = false
 
     private init() {}
 
@@ -55,6 +56,7 @@ final class NotchController {
         AppState.shared.onLayoutChange = { [weak self] in self?.repositionForScreenChange() }
 
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_EXPAND"] == "1" {
+            debugLocked = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.requestExpand()
             }
@@ -119,6 +121,7 @@ final class NotchController {
     }
 
     func requestCollapse() {
+        guard !debugLocked else { return }
         guard isExpanded, collapseWorkItem == nil else { return }
         let work = DispatchWorkItem { [weak self] in
             self?.collapseWorkItem = nil

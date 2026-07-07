@@ -11,7 +11,7 @@ struct NotchView: View {
         let expanded = controller.isExpanded
         let radius: CGFloat = expanded ? 22 : 12
 
-        ZStack {
+        ZStack(alignment: .top) {
             NotchShape(bottomRadius: radius)
                 .fill(.black)
                 .overlay(
@@ -22,18 +22,21 @@ struct NotchView: View {
                 )
                 .shadow(color: .black.opacity(expanded ? 0.5 : 0), radius: 12, y: 6)
 
+            // Content is pinned to the top and masked to the notch shape, so as
+            // the panel grows downward the dashboard is revealed top-to-bottom
+            // (a shade dropping from the notch) rather than blooming from center.
             Group {
                 if expanded {
                     ExpandedView()
                         .padding(.horizontal, 16)
                         .padding(.top, notchInset)
                         .padding(.bottom, 14)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                 } else {
                     CollapsedView()
-                        .transition(.opacity)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipShape(NotchShape(bottomRadius: radius))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())

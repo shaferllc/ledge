@@ -29,7 +29,7 @@ struct ExpandedView: View {
                 .scrollClipDisabled()
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder private func view(for module: Module) -> some View {
