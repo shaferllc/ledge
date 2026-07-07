@@ -10,7 +10,7 @@ struct BluetoothModule: View {
                 VStack(spacing: 6) {
                     Image(systemName: "dot.radiowaves.left.and.right")
                         .font(.system(size: 18)).foregroundStyle(.white.opacity(0.25))
-                    Text("No devices with battery")
+                    Text("No devices connected")
                         .font(.system(size: 9.5)).foregroundStyle(.white.opacity(0.4))
                         .multilineTextAlignment(.center)
                 }
@@ -23,14 +23,27 @@ struct BluetoothModule: View {
                                 .font(.system(size: 12))
                                 .foregroundStyle(.white.opacity(0.7))
                                 .frame(width: 18)
-                            Text(device.name)
-                                .font(.system(size: 10))
-                                .foregroundStyle(.white.opacity(0.8))
-                                .lineLimit(1)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(device.name)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .lineLimit(1)
+                                if let c = device.caseBattery {
+                                    Text("Case \(c)%")
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(.white.opacity(0.4))
+                                }
+                            }
                             Spacer(minLength: 4)
-                            Text("\(device.battery)%")
-                                .font(.system(size: 10, weight: .medium).monospacedDigit())
-                                .foregroundStyle(tint(device.battery))
+                            if let level = device.battery {
+                                Text("\(level)%")
+                                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                                    .foregroundStyle(tint(level))
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.green.opacity(0.7))
+                            }
                         }
                     }
                 }
