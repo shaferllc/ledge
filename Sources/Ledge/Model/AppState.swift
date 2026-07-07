@@ -12,6 +12,14 @@ enum Module: String, CaseIterable, Identifiable, Codable {
     case bluetooth
     case pomodoro
     case stopwatch
+    case countdown
+    case notes
+    case worldClock
+    case network
+    case storage
+    case caffeine
+    case shortcuts
+    case camera
 
     var id: String { rawValue }
 
@@ -26,6 +34,14 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .bluetooth:  "Bluetooth"
         case .pomodoro:   "Pomodoro"
         case .stopwatch:  "Stopwatch"
+        case .countdown:  "Countdown"
+        case .notes:      "Quick Notes"
+        case .worldClock: "World Clock"
+        case .network:    "Network"
+        case .storage:    "Storage"
+        case .caffeine:   "Caffeine"
+        case .shortcuts:  "Shortcuts"
+        case .camera:     "Mirror"
         }
     }
 
@@ -40,6 +56,37 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .bluetooth:  "dot.radiowaves.left.and.right"
         case .pomodoro:   "timer"
         case .stopwatch:  "stopwatch"
+        case .countdown:  "hourglass"
+        case .notes:      "note.text"
+        case .worldClock: "globe"
+        case .network:    "wifi"
+        case .storage:    "internaldrive"
+        case .caffeine:   "cup.and.saucer.fill"
+        case .shortcuts:  "square.grid.2x2"
+        case .camera:     "camera"
+        }
+    }
+
+    /// A short description shown in the settings module list.
+    var blurb: String {
+        switch self {
+        case .nowPlaying: "Playback controls & scrubber"
+        case .shelf:      "Drag-and-drop file stash"
+        case .calendar:   "Today's events & clock"
+        case .weather:    "Local conditions"
+        case .system:     "CPU, memory, battery"
+        case .clipboard:  "Recent copied text"
+        case .bluetooth:  "Accessory battery levels"
+        case .pomodoro:   "25/5 focus timer"
+        case .stopwatch:  "Stopwatch with laps"
+        case .countdown:  "Quick countdown timer"
+        case .notes:      "Persistent scratchpad"
+        case .worldClock: "Time zones at a glance"
+        case .network:    "Wi-Fi & throughput"
+        case .storage:    "Disk space"
+        case .caffeine:   "Keep your Mac awake"
+        case .shortcuts:  "Pinned app launcher"
+        case .camera:     "Front-camera mirror"
         }
     }
 }
@@ -95,6 +142,15 @@ final class AppState {
     let clipboard = ClipboardModel()
     let bluetooth = BluetoothModel()
     let stopwatch = StopwatchModel()
+    let countdown = CountdownModel()
+    let notes = NotesModel()
+    let worldClock = WorldClockModel()
+    let network = NetworkModel()
+    let storage = StorageModel()
+    let caffeine = CaffeineModel()
+    let shortcuts = ShortcutsModel()
+    let camera = CameraModel()
+    let audioOutput = AudioOutputModel()
 
     private var didStartModules = false
 
@@ -130,10 +186,14 @@ final class AppState {
         didStartModules = true
         nowPlaying.startPolling()
         system.start()
-        if enabledModules.contains(.calendar) { calendar.start() }
-        if enabledModules.contains(.weather) { weather.start() }
+        // Skip permission-prompting modules when snapshotting Settings.
+        let skipPrompts = ProcessInfo.processInfo.environment["LEDGE_DEBUG_SETTINGS"] == "1"
+        if enabledModules.contains(.calendar), !skipPrompts { calendar.start() }
+        if enabledModules.contains(.weather), !skipPrompts { weather.start() }
         if enabledModules.contains(.clipboard) { clipboard.start() }
         if enabledModules.contains(.bluetooth) { bluetooth.start() }
+        if enabledModules.contains(.network), !skipPrompts { network.start() }
+        if enabledModules.contains(.storage) { storage.start() }
     }
 
     /// Start a module's poller on demand (e.g. when newly enabled in Settings).
@@ -144,6 +204,8 @@ final class AppState {
         case .weather:   weather.start()
         case .clipboard: clipboard.start()
         case .bluetooth: bluetooth.start()
+        case .network:   network.start()
+        case .storage:   storage.start()
         default: break
         }
     }

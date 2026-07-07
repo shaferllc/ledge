@@ -4,9 +4,10 @@ import Observation
 
 /// A transient heads-up display shown in the notch (e.g. on volume change).
 struct HUDInfo: Equatable {
-    enum Kind: Equatable { case volume, mute }
+    enum Kind: Equatable { case volume, mute, charging, lowBattery }
     var kind: Kind
-    var level: Float      // 0…1
+    var level: Float          // 0…1
+    var charging: Bool = false
 }
 
 /// Owns the floating notch panel. The panel's window stays fixed at the full
@@ -34,6 +35,8 @@ final class NotchController {
     private let volumeWatcher = VolumeWatcher()
     private var suppressFirstHUD = true
     private var debugLocked = false
+    private var prevCharging: Bool?
+    private var lowBatteryShown = false
 
     private init() {}
 
@@ -161,7 +164,10 @@ final class NotchController {
 
     private func startCollapsedStateTimer() {
         let t = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshLiveActivity() }
+            Task { @MainActor in
+                self?.refreshLiveActivity()
+                self?.checkBatteryHUD()
+            }
         }
         t.tolerance = 0.2
         collapsedTimer = t
@@ -172,6 +178,23 @@ final class NotchController {
         let active = np.isPlaying && np.hasTrack
         guard active != liveActivityActive else { return }
         liveActivityActive = active     // SwiftUI animates the shape resize
+    }
+
+    /// Flash a HUD when the charger is plugged/unplugged or the battery gets low.
+    private func checkBatteryHUD() {
+        let sys = AppState.shared.system
+        guard sys.hasBattery else { return }
+        if let prev = prevCharging, prev != sys.isCharging {
+            showHUD(HUDInfo(kind: .charging, level: Float(sys.batteryLevel), charging: sys.isCharging))
+        }
+        prevCharging = sys.isCharging
+
+        if !sys.isCharging && sys.batteryLevel <= 0.2 && !lowBatteryShown {
+            showHUD(HUDInfo(kind: .lowBattery, level: Float(sys.batteryLevel)))
+            lowBatteryShown = true
+        } else if sys.isCharging || sys.batteryLevel > 0.25 {
+            lowBatteryShown = false
+        }
     }
 
     // MARK: HUD

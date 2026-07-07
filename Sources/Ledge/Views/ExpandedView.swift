@@ -43,6 +43,14 @@ struct ExpandedView: View {
         case .bluetooth:  BluetoothModule()
         case .pomodoro:   PomodoroModule()
         case .stopwatch:  StopwatchModule()
+        case .countdown:  CountdownModule()
+        case .notes:      NotesModule()
+        case .worldClock: WorldClockModule()
+        case .network:    NetworkModule()
+        case .storage:    StorageModule()
+        case .caffeine:   CaffeineModule()
+        case .shortcuts:  ShortcutsModule()
+        case .camera:     CameraModule()
         }
     }
 

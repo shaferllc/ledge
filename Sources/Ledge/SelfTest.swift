@@ -31,6 +31,12 @@ enum SelfTest {
             .init(name: "AirPods Pro", battery: 84),
             .init(name: "Magic Trackpad", battery: 47),
         ]
+        app.storage.totalGB = 1000; app.storage.freeGB = 412
+        app.network.connected = true; app.network.ssid = "Shafer 5G"
+        app.network.downBytesPerSec = 2_400_000; app.network.upBytesPerSec = 180_000
+        app.notes.text = "• ship Ledge v0.3\n• tune spring"
+        app.countdown.setDuration(600)
+        app.caffeine.activate()
 
         // Render the module row directly (ImageRenderer doesn't snapshot the
         // ScrollView ExpandedView uses at runtime, so we lay the cards out flat).
@@ -39,13 +45,16 @@ enum SelfTest {
             HStack(spacing: 10) {
                 NowPlayingModule()
                 WeatherModule()
-                CalendarModule()
                 SystemModule()
+                NetworkModule()
+                StorageModule()
+                WorldClockModule()
+                NotesModule()
+                CountdownModule()
+                CaffeineModule()
+                ShortcutsModule()
                 ClipboardModule()
                 BluetoothModule()
-                PomodoroModule()
-                StopwatchModule()
-                ShelfModule()
             }
             .frame(height: ExpandedView.moduleHeight)
             .padding(.horizontal, 16)
@@ -73,10 +82,27 @@ enum SelfTest {
             .appendingPathComponent("Desktop/ledge-selftest.png")
         try? data.write(to: out)
 
+        renderSettings(.appearance, name: "ledge-settings-appearance", app: app)
+        renderSettings(.behavior, name: "ledge-settings-behavior", app: app)
+
         print("SELFTEST: OK")
         print("  rendered \(cg.width)×\(cg.height)px → \(out.path)")
         print("  modules enabled: \(app.activeModules.map(\.rawValue).joined(separator: ", "))")
         print("  memory total: \(String(format: "%.1f", app.system.memoryTotalGB)) GB")
         exit(0)
+    }
+
+    private static func renderSettings(_ section: SettingsView.Section, name: String, app: AppState) {
+        let view = SettingsView(initialSection: section)
+            .environment(app)
+            .frame(width: 680, height: 500)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let cg = renderer.cgImage else { return }
+        let rep = NSBitmapImageRep(cgImage: cg)
+        guard let data = rep.representation(using: .png, properties: [:]) else { return }
+        let out = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Desktop/\(name).png")
+        try? data.write(to: out)
     }
 }

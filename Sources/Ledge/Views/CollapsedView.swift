@@ -48,14 +48,14 @@ struct CollapsedView: View {
 
     private func hudView(_ hud: HUDInfo) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: hud.kind == .mute ? "speaker.slash.fill" : symbol(for: hud.level))
+            Image(systemName: hudSymbol(hud))
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(hudIconColor(hud))
                 .frame(width: 18)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.18))
-                    Capsule().fill(hud.kind == .mute ? Color.white.opacity(0.4) : app.accentColor)
+                    Capsule().fill(hudFill(hud))
                         .frame(width: max(3, geo.size.width * CGFloat(hud.level)))
                 }
             }
@@ -66,7 +66,33 @@ struct CollapsedView: View {
         .padding(.bottom, 10)
     }
 
-    private func symbol(for level: Float) -> String {
+    private func hudSymbol(_ hud: HUDInfo) -> String {
+        switch hud.kind {
+        case .mute: "speaker.slash.fill"
+        case .volume: volumeSymbol(hud.level)
+        case .charging: hud.charging ? "bolt.fill" : "powerplug"
+        case .lowBattery: "battery.25"
+        }
+    }
+
+    private func hudIconColor(_ hud: HUDInfo) -> Color {
+        switch hud.kind {
+        case .charging: .green
+        case .lowBattery: .red
+        default: .white
+        }
+    }
+
+    private func hudFill(_ hud: HUDInfo) -> Color {
+        switch hud.kind {
+        case .mute: Color.white.opacity(0.4)
+        case .charging: .green
+        case .lowBattery: .red
+        case .volume: app.accentColor
+        }
+    }
+
+    private func volumeSymbol(_ level: Float) -> String {
         if level <= 0.001 { return "speaker.fill" }
         if level < 0.34 { return "speaker.wave.1.fill" }
         if level < 0.67 { return "speaker.wave.2.fill" }

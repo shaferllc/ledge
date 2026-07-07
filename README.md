@@ -29,13 +29,22 @@ displays (a small pill at the top-center).
   one-click **Join** button for Zoom/Meet/Teams/Webex meetings (EventKit).
 - **Weather** — current conditions + high/low for your location (Open-Meteo).
 - **System** — live CPU, memory, and battery meters.
+- **Network** — Wi-Fi network + live up/down throughput.
+- **Storage** — free / used disk space.
 - **Clipboard** — recent copied-text history; click an entry to copy it back.
 - **Bluetooth** — battery levels for AirPods, Magic Mouse/Keyboard/Trackpad.
-- **Pomodoro** — 25/5 focus timer with a progress ring.
-- **Stopwatch** — with laps.
+- **World Clock** — a few time zones at a glance.
+- **Quick Notes** — a persistent scratchpad.
+- **Pomodoro** / **Stopwatch** / **Countdown** — focus timer, stopwatch w/ laps,
+  quick countdown with presets.
+- **Caffeine** — keep your Mac awake (also in the menu bar).
+- **Shortcuts** — pin favorite apps and launch them from the notch.
+- **Mirror** — a live front-camera preview.
 
-Toggle modules, **drag to reorder**, pick an accent color and panel size, and set
-startup behavior from the menu-bar icon → **Settings…**.
+Also in the menu bar: a **Sound Output** switcher and the **Caffeine** toggle.
+
+Toggle modules, **drag to reorder**, pick an accent color and dashboard size, and
+set startup behavior from the menu-bar icon → **Settings…** (a custom sidebar UI).
 
 ## Build & run
 

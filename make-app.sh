@@ -41,7 +41,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleDisplayName</key>          <string>Ledge</string>
     <key>CFBundleIdentifier</key>           <string>com.tomshafer.ledge</string>
     <key>CFBundleVersion</key>              <string>1</string>
-    <key>CFBundleShortVersionString</key>   <string>0.1</string>
+    <key>CFBundleShortVersionString</key>   <string>0.3</string>
     <key>CFBundleExecutable</key>           <string>Ledge</string>
     <key>CFBundlePackageType</key>          <string>APPL</string>
     <key>CFBundleSupportedPlatforms</key>   <array><string>MacOSX</string></array>
@@ -53,6 +53,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>NSAppleEventsUsageDescription</key><string>Ledge controls Spotify and Apple Music to show what's playing and let you skip tracks from the notch.</string>
     <key>NSCalendarsUsageDescription</key>  <string>Ledge shows your upcoming events in the notch calendar module.</string>
     <key>NSLocationWhenInUseUsageDescription</key><string>Ledge uses your location to show local weather in the notch.</string>
+    <key>NSCameraUsageDescription</key>     <string>Ledge shows a live front-camera mirror in the notch when you enable the Mirror module.</string>
     <key>NSHumanReadableCopyright</key>     <string>© 2026 Tom Shafer</string>
 </dict>
 </plist>

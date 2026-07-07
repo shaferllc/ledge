@@ -4,12 +4,19 @@ import ServiceManagement
 /// The menu shown from the menu-bar icon.
 struct MenuContent: View {
     private let controller = NotchController.shared
+    private let app = AppState.shared
 
     var body: some View {
         Button(controller.isVisible ? "Hide Notch" : "Show Notch") {
             controller.toggleVisibility()
         }
         .keyboardShortcut("h")
+
+        Button(app.caffeine.active ? "☕ Keep Awake: On" : "Keep Awake: Off") {
+            app.caffeine.toggle()
+        }
+
+        AudioOutputMenu()
 
         Divider()
 
@@ -26,6 +33,24 @@ struct MenuContent: View {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
+    }
+}
+
+/// Submenu to switch the system audio output device.
+struct AudioOutputMenu: View {
+    private let model = AppState.shared.audioOutput
+
+    var body: some View {
+        Menu("Sound Output") {
+            ForEach(model.devices) { device in
+                Button {
+                    model.select(device)
+                } label: {
+                    Text((device.id == model.currentID ? "✓ " : "  ") + device.name)
+                }
+            }
+        }
+        .onAppear { model.refresh() }
     }
 }
 

@@ -40,6 +40,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { NotchController.shared.toggleExpand() }
         }
 
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_SETTINGS"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    for w in NSApp.windows where w.styleMask.contains(.titled) {
+                        w.level = .floating
+                        w.makeKeyAndOrderFront(nil)
+                        w.orderFrontRegardless()
+                    }
+                }
+            }
+        }
+
         // Reposition the notch when displays change (dock/undock, resolution).
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
