@@ -9,9 +9,12 @@ struct HUDInfo: Equatable {
     var level: Float      // 0…1
 }
 
-/// Owns the floating notch panel: creates it, positions it over the notch,
-/// and animates the transitions between collapsed, live-activity, HUD, and
-/// expanded states.
+/// Owns the floating notch panel. The panel's window stays fixed at the full
+/// (expanded) size, top-anchored under the notch; only the black notch *shape*
+/// inside animates between collapsed / live-activity / HUD / expanded. Animating
+/// a SwiftUI frame is smooth and reliable, whereas animating a borderless
+/// NSPanel's frame tends to snap. Mouse events pass through the window while
+/// idle so it never blocks the menu bar.
 @Observable
 @MainActor
 final class NotchController {
@@ -40,14 +43,15 @@ final class NotchController {
         let geo = resolveGeometry()
         self.geometry = geo
 
-        let panel = NotchPanel(contentRect: geo.collapsedFrame)
+        let panel = NotchPanel(contentRect: geo.expandedFrame)
         let host = NSHostingView(rootView: NotchView().environment(AppState.shared))
         host.frame = panel.contentLayoutRect
         host.autoresizingMask = [.width, .height]
         panel.contentView = host
-        panel.setFrame(geo.collapsedFrame, display: true)
+        panel.setFrame(geo.expandedFrame, display: true)
         panel.orderFrontRegardless()
         self.panel = panel
+        refreshMouseIgnore()
 
         startMouseMonitoring()
         startCollapsedStateTimer()
@@ -65,8 +69,8 @@ final class NotchController {
 
     // MARK: Mouse tracking
     //
-    // Hover is driven by the cursor's global position rather than SwiftUI's
-    // .onHover, because the panel resizes — hit-test hover would flicker.
+    // Hover uses the cursor's global position, not SwiftUI .onHover — while idle
+    // the window ignores mouse events, so only a global monitor sees the cursor.
 
     private func startMouseMonitoring() {
         let global = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
@@ -88,15 +92,23 @@ final class NotchController {
                 cancelPendingCollapse()
             }
         } else if !AppState.shared.expandOnClick {
-            let zone = nonExpandedFrame.insetBy(dx: -12, dy: -6)
+            // Trigger zone: the current shape rect, with a little slack.
+            let zone = shapeScreenRect.insetBy(dx: -12, dy: -6)
             if zone.contains(point) { requestExpand() }
         }
     }
 
-    /// Called by the panel when the user clicks it (used for expand-on-click).
     func handleClick() {
         guard AppState.shared.expandOnClick, !isExpanded else { return }
         requestExpand()
+    }
+
+    /// Idle window passes clicks through (so it never blocks the menu bar).
+    /// Exceptions: while expanded the dashboard must be interactive, and in
+    /// click-to-expand mode the idle notch must receive the click.
+    func refreshMouseIgnore() {
+        let interactive = isExpanded || AppState.shared.expandOnClick
+        panel?.ignoresMouseEvents = !interactive
     }
 
     private func resolveGeometry() -> NotchGeometry {
@@ -114,7 +126,7 @@ final class NotchController {
         dismissHUD()
         guard !isExpanded else { return }
         isExpanded = true
-        applyFrame()
+        refreshMouseIgnore()
         if AppState.shared.hapticOnExpand {
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
         }
@@ -126,7 +138,7 @@ final class NotchController {
         let work = DispatchWorkItem { [weak self] in
             self?.collapseWorkItem = nil
             self?.isExpanded = false
-            self?.applyFrame()
+            self?.refreshMouseIgnore()
         }
         collapseWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: work)
@@ -137,40 +149,16 @@ final class NotchController {
         collapseWorkItem = nil
     }
 
-    // MARK: Frame selection
-    //
-    // When not expanded the panel takes one of three shapes: a HUD pill, a
-    // wider live-activity bar (now playing / charging), or the bare notch.
-
-    private var nonExpandedFrame: NSRect {
+    /// Screen rect of the current (non-expanded) shape, for the hover zone.
+    private var shapeScreenRect: NSRect {
         guard let geo = geometry else { return .zero }
         if hud != nil { return geo.hudFrame }
         if liveActivityActive { return geo.liveActivityFrame }
         return geo.collapsedFrame
     }
 
-    private var targetFrame: NSRect {
-        guard let geo = geometry else { return .zero }
-        return isExpanded ? geo.expandedFrame : nonExpandedFrame
-    }
+    // MARK: Live activity
 
-    private func applyFrame(animated: Bool = true) {
-        guard let panel else { return }
-        let target = targetFrame
-        guard panel.frame != target else { return }
-        if animated {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = isExpanded ? 0.32 : 0.26
-                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1.0)
-                ctx.allowsImplicitAnimation = true
-                panel.animator().setFrame(target, display: true)
-            }
-        } else {
-            panel.setFrame(target, display: true)
-        }
-    }
-
-    /// Widen/narrow the collapsed bar as live activity comes and goes.
     private func startCollapsedStateTimer() {
         let t = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshLiveActivity() }
@@ -183,8 +171,7 @@ final class NotchController {
         let np = AppState.shared.nowPlaying
         let active = np.isPlaying && np.hasTrack
         guard active != liveActivityActive else { return }
-        liveActivityActive = active
-        if !isExpanded && hud == nil { applyFrame() }
+        liveActivityActive = active     // SwiftUI animates the shape resize
     }
 
     // MARK: HUD
@@ -192,7 +179,6 @@ final class NotchController {
     private func startVolumeHUD() {
         volumeWatcher.onChange = { [weak self] level, muted in
             guard let self else { return }
-            // The first callback fires on attach — don't flash a HUD at launch.
             if self.suppressFirstHUD { self.suppressFirstHUD = false; return }
             self.showHUD(HUDInfo(kind: muted ? .mute : .volume, level: muted ? 0 : level))
         }
@@ -202,7 +188,6 @@ final class NotchController {
     private func showHUD(_ info: HUDInfo) {
         guard !isExpanded else { return }
         hud = info
-        applyFrame()
         hudWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.dismissHUD() }
         hudWorkItem = work
@@ -212,9 +197,7 @@ final class NotchController {
     private func dismissHUD() {
         hudWorkItem?.cancel()
         hudWorkItem = nil
-        guard hud != nil else { return }
         hud = nil
-        if !isExpanded { applyFrame() }
     }
 
     // MARK: Visibility & screen changes
@@ -224,7 +207,6 @@ final class NotchController {
         if isVisible { panel?.orderFrontRegardless() } else { panel?.orderOut(nil) }
     }
 
-    /// Toggle expand/collapse (used by the global hotkey).
     func toggleExpand() {
         isExpanded ? requestCollapse() : requestExpand()
     }
@@ -232,7 +214,8 @@ final class NotchController {
     func repositionForScreenChange() {
         let geo = resolveGeometry()
         self.geometry = geo
-        applyFrame(animated: false)
+        panel?.setFrame(geo.expandedFrame, display: true)
+        refreshMouseIgnore()
     }
 
     var currentGeometry: NotchGeometry? { geometry }

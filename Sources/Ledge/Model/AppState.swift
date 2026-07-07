@@ -73,7 +73,7 @@ final class AppState {
         didSet { UserDefaults.standard.set(hapticOnExpand, forKey: "hapticOnExpand") }
     }
     var expandOnClick: Bool {
-        didSet { UserDefaults.standard.set(expandOnClick, forKey: "expandOnClick") }
+        didSet { UserDefaults.standard.set(expandOnClick, forKey: "expandOnClick"); onLayoutChange?() }
     }
     var accentColorName: String {
         didSet { UserDefaults.standard.set(accentColorName, forKey: "accentColorName") }

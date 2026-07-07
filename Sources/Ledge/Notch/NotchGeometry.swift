@@ -34,6 +34,13 @@ struct NotchGeometry {
         self.expandedHeight = self.notchHeight + panelSize.moduleHeight + 22
     }
 
+    // Sizes of the black notch SHAPE in each state (the window itself stays
+    // fixed at `expandedFrame`; only the shape animates).
+    var collapsedSize: CGSize { CGSize(width: notchWidth, height: notchHeight) }
+    var liveActivitySize: CGSize { CGSize(width: notchWidth + 168, height: notchHeight) }
+    var hudSize: CGSize { CGSize(width: max(notchWidth + 40, 220), height: notchHeight + 34) }
+    var expandedSize: CGSize { CGSize(width: expandedWidth, height: expandedHeight) }
+
     private var topY: CGFloat { screen.frame.maxY }
 
     /// Collapsed frame: sits exactly over the notch (or a small pill on flat tops).
