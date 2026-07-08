@@ -36,7 +36,24 @@ final class WorldClockModel {
         clocks.append(Clock(identifier: identifier, label: label))
     }
 
+    func add(_ zone: (id: String, label: String)) {
+        guard !clocks.contains(where: { $0.identifier == zone.id }) else { return }
+        clocks.append(Clock(identifier: zone.id, label: zone.label))
+    }
+
     func remove(_ clock: Clock) { clocks.removeAll { $0.id == clock.id } }
+
+    /// A curated set of cities offered by the "add" menu.
+    static let commonZones: [(id: String, label: String)] = [
+        ("America/Los_Angeles", "Los Angeles"), ("America/Denver", "Denver"),
+        ("America/Chicago", "Chicago"), ("America/New_York", "New York"),
+        ("America/Sao_Paulo", "São Paulo"), ("Europe/London", "London"),
+        ("Europe/Paris", "Paris"), ("Europe/Berlin", "Berlin"),
+        ("Europe/Moscow", "Moscow"), ("Asia/Dubai", "Dubai"),
+        ("Asia/Kolkata", "Mumbai"), ("Asia/Singapore", "Singapore"),
+        ("Asia/Hong_Kong", "Hong Kong"), ("Asia/Tokyo", "Tokyo"),
+        ("Australia/Sydney", "Sydney"), ("Pacific/Auckland", "Auckland"),
+    ]
 
     private func persist() {
         if let data = try? JSONEncoder().encode(clocks) {
