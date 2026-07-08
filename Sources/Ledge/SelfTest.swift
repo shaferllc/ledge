@@ -41,9 +41,10 @@ enum SelfTest {
                              low: [61, 62, 64, 60, 58, 59][i], precip: [10, 0, 5, 60, 80, 20][i])
         }
         app.clipboard.history = [
-            .init(text: "https://macnotch.io"),
-            .init(text: "The quick brown fox jumps over the lazy dog"),
-            .init(text: "ledge — a notch dashboard"),
+            .init(kind: .url, text: "https://macnotch.io", image: nil, date: base, pinned: true),
+            .init(kind: .color, text: "#3B82F6", image: nil, date: base),
+            .init(kind: .text, text: "The quick brown fox jumps over the lazy dog", image: nil, date: base),
+            .init(kind: .text, text: "ledge — a notch dashboard", image: nil, date: base),
         ]
         app.bluetooth.devices = [
             .init(name: "AirPods Pro", battery: 84),
