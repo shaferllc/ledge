@@ -84,10 +84,14 @@ final class NotchController {
     // the window ignores mouse events, so only a global monitor sees the cursor.
 
     private func startMouseMonitoring() {
-        let global = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
+        // Include drag events: while dragging a file the button is held, so the
+        // system emits .leftMouseDragged (not .mouseMoved) — without this the
+        // notch never reacts to a drag heading toward it.
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged]
+        let global = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] _ in
             Task { @MainActor in self?.handleMouse(at: NSEvent.mouseLocation) }
         }
-        let local = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
+        let local = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
             Task { @MainActor in self?.handleMouse(at: NSEvent.mouseLocation) }
             return event
         }
