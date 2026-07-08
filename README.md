@@ -62,6 +62,52 @@ identity across launches.
 Ledge runs as a menu-bar utility (no Dock icon). It lives above the menu bar so
 it can draw into the notch region.
 
+## Distribution
+
+`make-dmg.sh` builds a distributable `build/Ledge.dmg` (the app plus an
+*Applications* drop link):
+
+```sh
+./make-dmg.sh            # ad-hoc DMG — fine for yourself; other Macs get a
+                         # Gatekeeper prompt (right-click → Open to bypass)
+```
+
+For a DMG that launches cleanly on any Mac, sign with a Developer ID and
+notarize:
+
+```sh
+SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+NOTARIZE=1 AC_APPLE_ID=you@example.com AC_TEAM_ID=TEAMID \
+AC_PASSWORD=app-specific-pw \
+./make-dmg.sh
+```
+
+This signs with the hardened runtime (`Ledge.entitlements` grants the Apple
+Events entitlement the AppleScript-driven Now Playing module needs), notarizes +
+staples the app, packages it, then notarizes + staples the DMG.
+
+### Releasing via CI
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the
+notarized DMG and attaches it to a GitHub Release:
+
+```sh
+git tag v0.4 && git push origin v0.4
+```
+
+It reads these repository secrets (without them it still builds an ad-hoc DMG):
+
+| Secret | What |
+| --- | --- |
+| `MACOS_CERTIFICATE` | base64 of your Developer ID Application `.p12` |
+| `MACOS_CERTIFICATE_PWD` | password for that `.p12` |
+| `MACOS_SIGN_IDENTITY` | e.g. `Developer ID Application: Tom Shafer (TEAMID)` |
+| `KEYCHAIN_PASSWORD` | any string; for the throwaway CI keychain |
+| `AC_APPLE_ID` / `AC_TEAM_ID` / `AC_PASSWORD` | Apple ID + app-specific password for notarization |
+
+Export the `.p12` from Keychain Access (your Developer ID Application cert +
+private key) and base64 it with `base64 -i cert.p12 | pbcopy`.
+
 ## Architecture
 
 - `Notch/` — the overlay: `NotchPanel` (borderless non-activating `NSPanel`),

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Ledge is not sandboxed. Under the hardened runtime (required for
+         notarization) it still needs permission to send Apple Events, which is
+         how it drives Spotify / Apple Music via osascript. Camera, Calendar,
+         Reminders, and Location are gated by TCC + the Info.plist usage strings,
+         not by entitlements, so they aren't listed here. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>

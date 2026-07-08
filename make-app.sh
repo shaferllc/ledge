@@ -3,6 +3,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Configurable via env so make-dmg.sh / CI can reuse this to produce a
+# Developer-ID-signed bundle in a staging dir, while the plain `./make-app.sh`
+# path keeps building an ad-hoc app on the Desktop.
+#   APP_DEST       directory to place Ledge.app in   (default ~/Desktop)
+#   SIGN_IDENTITY  codesign identity                 (default "-" = ad-hoc)
+#   LEDGE_VERSION  CFBundleShortVersionString         (default 0.3)
+#   LEDGE_BUILD    CFBundleVersion                    (default 1)
+APP_DEST="${APP_DEST:-$HOME/Desktop}"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+LEDGE_VERSION="${LEDGE_VERSION:-0.3}"
+LEDGE_BUILD="${LEDGE_BUILD:-1}"
+
 INSTALL=0
 for arg in "$@"; do
   case "$arg" in
@@ -10,6 +22,8 @@ for arg in "$@"; do
     -h|--help)
       echo "Usage: $0 [--install]"
       echo "  --install   Move Ledge.app into /Applications and launch it"
+      echo ""
+      echo "Env: APP_DEST, SIGN_IDENTITY, LEDGE_VERSION, LEDGE_BUILD"
       exit 0
       ;;
   esac
@@ -24,15 +38,16 @@ if [ ! -f AppIcon.icns ] || [ make-icon.swift -nt AppIcon.icns ]; then
   swift make-icon.swift
 fi
 
-APP="$HOME/Desktop/Ledge.app"
+APP="$APP_DEST/Ledge.app"
 echo "› Assembling $APP"
+mkdir -p "$APP_DEST"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp .build/release/Ledge "$APP/Contents/MacOS/Ledge"
 cp AppIcon.icns         "$APP/Contents/Resources/AppIcon.icns"
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -40,8 +55,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleName</key>                 <string>Ledge</string>
     <key>CFBundleDisplayName</key>          <string>Ledge</string>
     <key>CFBundleIdentifier</key>           <string>com.tomshafer.ledge</string>
-    <key>CFBundleVersion</key>              <string>1</string>
-    <key>CFBundleShortVersionString</key>   <string>0.3</string>
+    <key>CFBundleVersion</key>              <string>${LEDGE_BUILD}</string>
+    <key>CFBundleShortVersionString</key>   <string>${LEDGE_VERSION}</string>
     <key>CFBundleExecutable</key>           <string>Ledge</string>
     <key>CFBundlePackageType</key>          <string>APPL</string>
     <key>CFBundleSupportedPlatforms</key>   <array><string>MacOSX</string></array>
@@ -60,8 +75,22 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-# Ad-hoc sign so Automation/Calendar permissions bind to a stable identity.
-codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
+if [ "$SIGN_IDENTITY" = "-" ]; then
+  # Ad-hoc sign so Automation/Calendar permissions bind to a stable identity.
+  echo "› Ad-hoc signing"
+  codesign --force --sign - "$APP/Contents/MacOS/Ledge" >/dev/null 2>&1 || true
+  codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+else
+  # Developer ID signing with the hardened runtime, required for notarization.
+  echo "› Signing with: $SIGN_IDENTITY (hardened runtime)"
+  codesign --force --options runtime --timestamp \
+    --entitlements Ledge.entitlements \
+    --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/Ledge"
+  codesign --force --options runtime --timestamp \
+    --entitlements Ledge.entitlements \
+    --sign "$SIGN_IDENTITY" "$APP"
+  codesign --verify --deep --strict --verbose=2 "$APP"
+fi
 touch "$APP"
 
 if [ "$INSTALL" = "1" ]; then

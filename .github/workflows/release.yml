@@ -1,0 +1,87 @@
+name: Release
+
+# Cut a release by pushing a tag like v0.4:
+#   git tag v0.4 && git push origin v0.4
+# Builds a signed + notarized Ledge.dmg and attaches it to a GitHub Release.
+#
+# Requires these repository secrets for a real (notarized) build. Without them
+# the job still runs, producing an ad-hoc-signed DMG (Gatekeeper will warn):
+#   MACOS_CERTIFICATE      base64 of your Developer ID Application .p12
+#   MACOS_CERTIFICATE_PWD  password for that .p12
+#   MACOS_SIGN_IDENTITY    e.g. "Developer ID Application: Tom Shafer (TEAMID)"
+#   KEYCHAIN_PASSWORD      any string; used for the throwaway CI keychain
+#   AC_APPLE_ID            Apple ID email for notarization
+#   AC_TEAM_ID             10-char team id
+#   AC_PASSWORD            app-specific password for that Apple ID
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # secrets.* isn't reliable inside `if:`, so surface it as an output once.
+      - name: Detect signing config
+        id: cfg
+        env:
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          if [ -n "$SIGN_IDENTITY" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No MACOS_SIGN_IDENTITY secret set — building an ad-hoc DMG (not notarized)."
+          fi
+
+      - name: Import Developer ID certificate
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          CERT: ${{ secrets.MACOS_CERTIFICATE }}
+          CERT_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$CERT" | base64 --decode > cert.p12
+          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
+          rm cert.p12
+
+      - name: Build, notarize, and package DMG
+        env:
+          SIGN_IDENTITY: ${{ steps.cfg.outputs.signed == 'true' && secrets.MACOS_SIGN_IDENTITY || '-' }}
+          NOTARIZE: ${{ steps.cfg.outputs.signed == 'true' && '1' || '0' }}
+          AC_APPLE_ID: ${{ secrets.AC_APPLE_ID }}
+          AC_TEAM_ID: ${{ secrets.AC_TEAM_ID }}
+          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
+          LEDGE_VERSION: ${{ steps.version.outputs.version }}
+          LEDGE_BUILD: ${{ github.run_number }}
+        run: ./make-dmg.sh
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Ledge $GITHUB_REF_NAME" \
+            --generate-notes \
+            build/Ledge.dmg
