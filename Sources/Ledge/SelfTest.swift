@@ -17,6 +17,13 @@ enum SelfTest {
         app.nowPlaying.duration = 214
         app.shelf.add([URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")])
         app.system.start()
+        app.system.cpuHistory = [0.2, 0.3, 0.25, 0.5, 0.45, 0.62, 0.55, 0.7, 0.42, 0.3,
+                                 0.35, 0.5, 0.66, 0.82, 0.6, 0.4, 0.28, 0.45, 0.52, 0.58,
+                                 0.7, 0.5, 0.35, 0.42, 0.6, 0.75, 0.55, 0.4, 0.5, 0.62]
+        app.system.topProcessName = "WindowServer"
+        app.system.topProcessCPU = 14
+        app.system.uptime = 3 * 86400 + 4 * 3600
+        app.system.batteryMinutes = 134
         let base = Date()
         app.weather.available = true
         app.weather.temperature = 72

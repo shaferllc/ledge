@@ -8,15 +8,23 @@ import Observation
 @MainActor
 final class SystemMonitor {
     var cpuUsage: Double = 0        // 0…1
+    var cpuHistory: [Double] = []   // recent samples, 0…1
     var memoryUsage: Double = 0     // 0…1
     var memoryUsedGB: Double = 0
     var memoryTotalGB: Double = 0
     var batteryLevel: Double = 0    // 0…1
     var isCharging = false
     var hasBattery = false
+    var batteryMinutes: Int?        // time to empty (or full when charging)
+    var uptime: TimeInterval = 0
+    var coreCount = ProcessInfo.processInfo.activeProcessorCount
+    var topProcessName = ""
+    var topProcessCPU: Double = 0
 
     private var timer: Timer?
     private var previousTicks: (user: UInt32, system: UInt32, idle: UInt32, nice: UInt32)?
+    private var sampleCount = 0
+    private let historyLength = 32
 
     func start() {
         guard timer == nil else { return }
@@ -33,6 +41,37 @@ final class SystemMonitor {
         sampleCPU()
         sampleMemory()
         sampleBattery()
+        uptime = ProcessInfo.processInfo.systemUptime
+        cpuHistory.append(cpuUsage)
+        if cpuHistory.count > historyLength { cpuHistory.removeFirst(cpuHistory.count - historyLength) }
+        // Top process is a subprocess spawn — sample it less often.
+        if sampleCount % 3 == 0 { sampleTopProcess() }
+        sampleCount += 1
+    }
+
+    private func sampleTopProcess() {
+        Task.detached(priority: .utility) {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: "/bin/ps")
+            proc.arguments = ["-Aro", "pcpu,comm"]
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = Pipe()
+            guard (try? proc.run()) != nil else { return }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+            let lines = String(decoding: data, as: UTF8.self).split(separator: "\n")
+            // Line 0 is the header; line 1 is the busiest process.
+            guard lines.count > 1 else { return }
+            let parts = lines[1].trimmingCharacters(in: .whitespaces)
+                .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            guard parts.count == 2, let cpu = Double(parts[0]) else { return }
+            let name = (parts[1].split(separator: "/").last.map(String.init) ?? String(parts[1]))
+            await MainActor.run {
+                self.topProcessCPU = cpu
+                self.topProcessName = name
+            }
+        }
     }
 
     private func sampleCPU() {
@@ -95,6 +134,13 @@ final class SystemMonitor {
         }
         if let state = desc[kIOPSPowerSourceStateKey] as? String {
             isCharging = state == kIOPSACPowerValue
+        }
+        // Estimated minutes remaining (-1 while the OS is still calculating).
+        let key = isCharging ? kIOPSTimeToFullChargeKey : kIOPSTimeToEmptyKey
+        if let minutes = desc[key] as? Int, minutes > 0 {
+            batteryMinutes = minutes
+        } else {
+            batteryMinutes = nil
         }
     }
 }
