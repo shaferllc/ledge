@@ -105,11 +105,19 @@ final class PermissionsModel: NSObject, CLLocationManagerDelegate {
     func request(_ p: Permission) {
         switch p {
         case .calendar:
-            store.requestFullAccessToEvents { [weak self] _, _ in
+            // A fresh store per request avoids a shared EKEventStore getting
+            // stuck between the event and reminder entity types.
+            let store = EKEventStore()
+            store.requestFullAccessToEvents { [weak self] granted, error in
+                NSLog("Ledge: calendar grant granted=\(granted) error=\(String(describing: error))")
+                _ = store   // retain until the completion fires
                 Task { @MainActor in self?.refresh() }
             }
         case .reminders:
-            store.requestFullAccessToReminders { [weak self] _, _ in
+            let store = EKEventStore()
+            store.requestFullAccessToReminders { [weak self] granted, error in
+                NSLog("Ledge: reminders grant granted=\(granted) error=\(String(describing: error))")
+                _ = store
                 Task { @MainActor in self?.refresh() }
             }
         case .camera:

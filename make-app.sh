@@ -71,6 +71,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>NSHighResolutionCapable</key>      <true/>
     <key>NSAppleEventsUsageDescription</key><string>Ledge controls Spotify and Apple Music to show what's playing and let you skip tracks from the notch.</string>
     <key>NSCalendarsUsageDescription</key>  <string>Ledge shows your upcoming events in the notch calendar module.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>Ledge shows your upcoming events and meeting links in the notch calendar module.</string>
+    <key>NSRemindersUsageDescription</key>  <string>Ledge shows your reminders and lets you add and complete them from the notch.</string>
     <key>NSRemindersFullAccessUsageDescription</key><string>Ledge shows your reminders and lets you add and complete them from the notch.</string>
     <key>NSLocationWhenInUseUsageDescription</key><string>Ledge uses your location to show local weather in the notch.</string>
     <key>NSCameraUsageDescription</key>     <string>Ledge shows a live front-camera mirror in the notch when you enable the Mirror module.</string>

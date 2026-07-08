@@ -13,11 +13,31 @@ struct CollapsedView: View {
             hudView(hud)
         } else if controller.liveActivityActive {
             liveActivity
+        } else if controller.spectrumActive {
+            audioEqualizer
         } else if controller.contextActive {
             contextGlance
         } else {
             idle
         }
+    }
+
+    // MARK: Live audio equalizer (beside the notch, no track needed)
+
+    private var audioEqualizer: some View {
+        HStack(spacing: 0) {
+            EqualizerBars(levels: app.audioSpectrum.levels)
+                .frame(width: 16, height: 11)
+                .foregroundStyle(app.accentColor)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            Color.clear.frame(width: notchWidth)
+            EqualizerBars(levels: Array(app.audioSpectrum.levels.reversed()))
+                .frame(width: 16, height: 11)
+                .foregroundStyle(app.accentColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Context glance (beside the notch — next meeting while a calendar app is up)

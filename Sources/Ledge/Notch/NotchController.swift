@@ -29,10 +29,11 @@ final class NotchController {
     private(set) var hud: HUDInfo?
     private(set) var liveActivityActive = false
     private(set) var contextActive = false
+    private(set) var spectrumActive = false
 
-    /// The collapsed shape widens beside the notch for either a media
-    /// live-activity or a context glance.
-    var collapsedWide: Bool { liveActivityActive || contextActive }
+    /// The collapsed shape widens beside the notch for a media live-activity, a
+    /// context glance, or a live audio equalizer.
+    var collapsedWide: Bool { liveActivityActive || contextActive || spectrumActive }
 
     private var panel: NotchPanel?
     private var dropCatcher: DropCatcherPanel?
@@ -264,12 +265,21 @@ final class NotchController {
         let context = !playing && app.contextAware
             && app.context.isCalendarAppFront
             && app.calendar.nextEvent() != nil
+        // Run the audio tap whenever Now Playing is enabled, so the equalizer
+        // reacts to any playing audio — even without the Music/Spotify automation
+        // grant that `playing` detection needs.
+        if app.enabledModules.contains(.nowPlaying) {
+            app.audioSpectrum.start()
+        } else {
+            app.audioSpectrum.stop()
+        }
+        // Show a live equalizer beside the notch when audio is playing but we
+        // don't have a detected track (media strip takes priority).
+        let spectrum = !playing && app.audioSpectrum.hasAudio
+
         if playing != liveActivityActive { liveActivityActive = playing }
         if context != contextActive { contextActive = context }
-
-        // Drive the real audio spectrum only while media is playing (both calls
-        // are cheap no-ops once in the desired state).
-        if playing { app.audioSpectrum.start() } else { app.audioSpectrum.stop() }
+        if spectrum != spectrumActive { spectrumActive = spectrum }
     }
 
     /// Flash a HUD when the charger is plugged/unplugged or the battery gets low.

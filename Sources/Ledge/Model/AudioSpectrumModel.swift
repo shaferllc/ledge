@@ -15,6 +15,10 @@ final class AudioSpectrumModel {
     private(set) var levels: [Float]
     private(set) var active = false
 
+    /// Whether audio is currently playing (any band above a small floor). Used
+    /// to show the equalizer beside the notch independent of Now Playing.
+    var hasAudio: Bool { active && (levels.max() ?? 0) > 0.03 }
+
     let bandCount: Int
     // Type-erased: SpectrumTap is macOS 14.4+, but this model targets 14.0.
     private var tap: AnyObject?
