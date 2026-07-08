@@ -28,6 +28,11 @@ enum SelfTest {
             WeatherModel.Hour(date: base.addingTimeInterval(Double(i) * 3600),
                               code: [2, 2, 3, 61, 80, 3, 1][i], temp: [72, 74, 75, 73, 70, 68, 66][i])
         }
+        app.weather.daily = (0..<6).map { i in
+            WeatherModel.Day(date: base.addingTimeInterval(Double(i) * 86400),
+                             code: [2, 0, 1, 61, 80, 3][i], high: [78, 81, 83, 74, 70, 76][i],
+                             low: [61, 62, 64, 60, 58, 59][i], precip: [10, 0, 5, 60, 80, 20][i])
+        }
         app.clipboard.history = [
             .init(text: "https://macnotch.io"),
             .init(text: "The quick brown fox jumps over the lazy dog"),

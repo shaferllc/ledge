@@ -2,16 +2,24 @@ import SwiftUI
 
 struct WeatherModule: View {
     @Environment(AppState.self) private var app
+    @State private var mode: Mode = .hourly
+    private enum Mode { case hourly, daily }
 
     var body: some View {
         let w = app.weather
         ModuleCard(title: "Weather", symbol: "cloud.sun") {
             if w.available, let temp = w.temperature {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     current(w, temp: temp)
-                    if !w.hourly.isEmpty {
-                        Divider().overlay(Color.white.opacity(0.08))
-                        hourly(w)
+                    if !w.hourly.isEmpty || !w.daily.isEmpty {
+                        HStack(spacing: 6) {
+                            Divider().overlay(Color.white.opacity(0.08)).frame(width: 40)
+                            Spacer()
+                            modeToggle(w)
+                        }
+                        Group {
+                            if mode == .daily, !w.daily.isEmpty { daily(w) } else { hourly(w) }
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -86,6 +94,50 @@ struct WeatherModule: View {
                     Text("\(hour.temp)°")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    // MARK: Mode toggle
+
+    private func modeToggle(_ w: WeatherModel) -> some View {
+        HStack(spacing: 2) {
+            toggleChip("Hourly", active: mode == .hourly) { mode = .hourly }
+            if !w.daily.isEmpty {
+                toggleChip("Daily", active: mode == .daily) { mode = .daily }
+            }
+        }
+    }
+
+    private func toggleChip(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(active ? .white : .white.opacity(0.4))
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Capsule().fill(active ? app.accentColor.opacity(0.8) : Color.white.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Daily strip
+
+    private func daily(_ w: WeatherModel) -> some View {
+        let cal = Calendar.current
+        return HStack(spacing: 0) {
+            ForEach(w.daily.prefix(6)) { day in
+                let isToday = cal.isDateInToday(day.date)
+                VStack(spacing: 2) {
+                    Text(isToday ? "Today" : day.date.formatted(.dateTime.weekday(.abbreviated)))
+                        .font(.system(size: 9, weight: isToday ? .semibold : .regular))
+                        .foregroundStyle(.white.opacity(isToday ? 0.9 : 0.5))
+                    Image(systemName: WeatherModel.symbol(for: day.code))
+                        .symbolRenderingMode(.multicolor)
+                        .font(.system(size: 13)).frame(height: 15)
+                    Text("\(day.high)°").font(.system(size: 10, weight: .medium)).foregroundStyle(.white)
+                    Text("\(day.low)°").font(.system(size: 9)).foregroundStyle(.white.opacity(0.45))
                 }
                 .frame(maxWidth: .infinity)
             }
