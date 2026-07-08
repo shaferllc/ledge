@@ -61,7 +61,12 @@ struct NotchView: View {
     }
 
     @ViewBuilder private func content(expanded: Bool) -> some View {
-        if expanded {
+        if expanded && controller.claudeActive {
+            ClaudeView()
+                .padding(.horizontal, 18)
+                .padding(.top, notchInset)
+                .padding(.bottom, 16)
+        } else if expanded {
             ExpandedView()
                 .padding(.horizontal, 16)
                 .padding(.top, notchInset)

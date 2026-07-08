@@ -45,6 +45,10 @@ struct MenuContent: View {
             }
         }
 
+        Button(AnthropicKey.hasKey ? "Change Claude API Key…" : "Set Claude API Key…") {
+            AnthropicKeyPrompt.show()
+        }
+
         LaunchAtLoginToggle()
 
         Divider()

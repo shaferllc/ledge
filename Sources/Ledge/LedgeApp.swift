@@ -22,6 +22,7 @@ struct LedgeApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = NotchController.shared
     private var hotKey: HotKey?
+    private var claudeHotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu-bar / overlay utility: no Dock icon, never a foreground app.
@@ -45,8 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Global hot key: ⌘⌥N toggles the dashboard.
         hotKey = HotKey(keyCode: UInt32(kVK_ANSI_N),
-                        modifiers: UInt32(cmdKey | optionKey)) {
+                        modifiers: UInt32(cmdKey | optionKey), id: 1) {
             MainActor.assumeIsolated { NotchController.shared.toggleExpand() }
+        }
+
+        // ⌘⌥Space: Claude in the notch.
+        claudeHotKey = HotKey(keyCode: UInt32(kVK_Space),
+                              modifiers: UInt32(cmdKey | optionKey), id: 2) {
+            MainActor.assumeIsolated { NotchController.shared.toggleClaude() }
         }
 
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_SETTINGS"] == "1" {

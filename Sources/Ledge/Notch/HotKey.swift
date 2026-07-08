@@ -8,7 +8,7 @@ final class HotKey: @unchecked Sendable {
     private var eventHandler: EventHandlerRef?
     private let callback: () -> Void
 
-    init?(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
+    init?(keyCode: UInt32, modifiers: UInt32, id: UInt32 = 1, callback: @escaping () -> Void) {
         self.callback = callback
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
@@ -23,7 +23,7 @@ final class HotKey: @unchecked Sendable {
         }, 1, &eventType, selfPtr, &eventHandler)
         guard installStatus == noErr else { return nil }
 
-        let hotKeyID = EventHotKeyID(signature: OSType(0x4C454447), id: 1) // 'LEDG'
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4C454447), id: id) // 'LEDG'
         let regStatus = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
                                             GetApplicationEventTarget(), 0, &hotKeyRef)
         guard regStatus == noErr else { return nil }

@@ -180,6 +180,7 @@ final class AppState {
     let audioOutput = AudioOutputModel()
     let context = ContextModel()
     let proximity = ProximityModel()
+    let claude = ClaudeModel()
 
     private var didStartModules = false
 

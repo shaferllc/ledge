@@ -25,6 +25,7 @@ final class NotchController {
 
     private(set) var isExpanded = false
     private(set) var isVisible = true
+    private(set) var claudeActive = false
     private(set) var hud: HUDInfo?
     private(set) var liveActivityActive = false
     private(set) var contextActive = false
@@ -103,6 +104,12 @@ final class NotchController {
             ])
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.requestExpand()
+            }
+        }
+
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_CLAUDE"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.toggleClaude()
             }
         }
 
@@ -200,6 +207,8 @@ final class NotchController {
 
     func requestCollapse() {
         guard !debugLocked else { return }
+        // Claude mode pins the notch open until explicitly dismissed.
+        guard !claudeActive else { return }
         guard isExpanded, collapseWorkItem == nil else { return }
         let work = DispatchWorkItem { [weak self] in
             self?.collapseWorkItem = nil
@@ -353,7 +362,22 @@ final class NotchController {
     }
 
     func toggleExpand() {
+        if claudeActive { toggleClaude(); return }
         isExpanded ? requestCollapse() : requestExpand()
+    }
+
+    /// ⌘⌥Space: open the Claude assistant in the expanded notch, or close it.
+    /// While Claude is open the notch stays put (hovering away doesn't collapse
+    /// it) so you can read the answer; toggle again or press Escape to dismiss.
+    func toggleClaude() {
+        if claudeActive {
+            claudeActive = false
+            AppState.shared.claude.reset()
+            requestCollapse()
+        } else {
+            claudeActive = true
+            requestExpand()
+        }
     }
 
     func repositionForScreenChange() {
