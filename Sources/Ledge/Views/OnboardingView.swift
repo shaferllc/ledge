@@ -103,6 +103,7 @@ private struct PermissionRow: View {
 enum OnboardingWindowController {
     static let defaultsKey = "didCompleteOnboarding"
     private static var window: NSWindow?
+    private static let delegate = OnboardingWindowDelegate()
 
     static var shouldShowOnLaunch: Bool {
         !UserDefaults.standard.bool(forKey: defaultsKey)
@@ -127,6 +128,7 @@ enum OnboardingWindowController {
         w.titlebarAppearsTransparent = true
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false
+        w.delegate = delegate
         w.center()
         window = w
 
@@ -137,7 +139,28 @@ enum OnboardingWindowController {
 
     /// Marks onboarding done and closes the window (called by "Get Started").
     static func complete() {
-        UserDefaults.standard.set(true, forKey: defaultsKey)
+        markDone()
         window?.close()
+    }
+
+    /// Mark onboarding seen so it doesn't reappear on the next launch. Called on
+    /// "Get Started" and on any window close — the "Set Up Permissions…" menu
+    /// item reopens it regardless of this flag.
+    static func markDone() {
+        UserDefaults.standard.set(true, forKey: defaultsKey)
+    }
+
+    static func windowClosed() {
+        markDone()
+        window = nil
+    }
+}
+
+/// Bridges the onboarding NSWindow's close to `OnboardingWindowController`, so
+/// dismissing it any way (Get Started, the close button, ⌘W) marks it seen.
+@MainActor
+private final class OnboardingWindowDelegate: NSObject, NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        OnboardingWindowController.windowClosed()
     }
 }
