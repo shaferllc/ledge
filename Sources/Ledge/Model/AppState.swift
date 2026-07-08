@@ -21,6 +21,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
     case shortcuts
     case camera
     case teleprompter
+    case reminders
 
     var id: String { rawValue }
 
@@ -44,6 +45,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .shortcuts:  "Shortcuts"
         case .camera:     "Mirror"
         case .teleprompter: "Teleprompter"
+        case .reminders:  "Reminders"
         }
     }
 
@@ -67,6 +69,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .shortcuts:  "square.grid.2x2"
         case .camera:     "camera"
         case .teleprompter: "text.viewfinder"
+        case .reminders:  "checklist"
         }
     }
 
@@ -91,6 +94,7 @@ enum Module: String, CaseIterable, Identifiable, Codable {
         case .shortcuts:  "Pinned app launcher"
         case .camera:     "Front-camera mirror"
         case .teleprompter: "Scrolling script reader"
+        case .reminders:  "Tasks & quick-add"
         }
     }
 }
@@ -157,6 +161,7 @@ final class AppState {
     let shortcuts = ShortcutsModel()
     let camera = CameraModel()
     let teleprompter = TeleprompterModel()
+    let reminders = ReminderModel()
     let audioOutput = AudioOutputModel()
 
     private var didStartModules = false
@@ -201,6 +206,7 @@ final class AppState {
         if enabledModules.contains(.bluetooth) { bluetooth.start() }
         if enabledModules.contains(.network), !skipPrompts { network.start() }
         if enabledModules.contains(.storage) { storage.start() }
+        if enabledModules.contains(.reminders), !skipPrompts { reminders.start() }
     }
 
     /// Start a module's poller on demand (e.g. when newly enabled in Settings).
@@ -213,6 +219,7 @@ final class AppState {
         case .bluetooth: bluetooth.start()
         case .network:   network.start()
         case .storage:   storage.start()
+        case .reminders: reminders.start()
         default: break
         }
     }

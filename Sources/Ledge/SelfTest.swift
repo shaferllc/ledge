@@ -57,6 +57,12 @@ enum SelfTest {
         app.countdown.setDuration(600)
         app.caffeine.activate()
         app.teleprompter.script = "Welcome to Ledge.\nYour notch is now a teleprompter — read your script while looking right at the camera, and nudge the speed on the fly."
+        app.reminders.accessGranted = true
+        app.reminders.items = [
+            .init(id: "r1", title: "Ship Ledge v0.4", due: base.addingTimeInterval(-3600), priority: 1),
+            .init(id: "r2", title: "Email the designer", due: base.addingTimeInterval(7200), priority: 0),
+            .init(id: "r3", title: "Buy notch stickers", due: nil, priority: 0),
+        ]
         app.calendar.accessGranted = true
         app.calendar.eventDays = [3, 7, 8, 12, 18, 22, 25]
         app.calendar.events = [
@@ -83,6 +89,7 @@ enum SelfTest {
         let content = ZStack {
             NotchShape(bottomRadius: 22).fill(.black)
             HStack(spacing: 10) {
+                ReminderModule()
                 CalendarModule()
                 NowPlayingModule()
                 WeatherModule()
