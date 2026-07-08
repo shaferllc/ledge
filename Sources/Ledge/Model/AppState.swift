@@ -101,7 +101,9 @@ enum PanelSize: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
     var width: CGFloat { self == .small ? 520 : self == .medium ? 600 : 720 }
-    var moduleHeight: CGFloat { self == .small ? 140 : self == .medium ? 156 : 176 }
+    // Height is floored at 156 so the tallest card (the Calendar month grid)
+    // never clips; the size preset scales width (how many modules show).
+    var moduleHeight: CGFloat { self == .small ? 156 : self == .medium ? 164 : 178 }
 }
 
 /// Global, observable app state. A singleton so the MenuBarExtra, Settings
