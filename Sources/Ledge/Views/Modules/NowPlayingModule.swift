@@ -37,16 +37,9 @@ struct NowPlayingModule: View {
     }
 
     @ViewBuilder private func background(_ np: NowPlayingModel) -> some View {
+        // Plain dark card, matching every other module (no full-bleed album art
+        // backdrop, which showed as a warm smear against the notch).
         RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06))
-        if let url = np.artworkURL {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-                    .blur(radius: 26)
-                    .opacity(0.55)
-                    .overlay(LinearGradient(colors: [.black.opacity(0.3), .black.opacity(0.65)],
-                                            startPoint: .top, endPoint: .bottom))
-            } placeholder: { Color.clear }
-        }
     }
 
     private func trackRow(_ np: NowPlayingModel) -> some View {
