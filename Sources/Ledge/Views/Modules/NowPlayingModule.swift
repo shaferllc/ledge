@@ -56,7 +56,8 @@ struct NowPlayingModule: View {
             }
             Spacer(minLength: 0)
             if np.isPlaying {
-                EqualizerBars().frame(width: 15, height: 12).foregroundStyle(app.accentColor)
+                EqualizerBars(levels: app.audioSpectrum.active ? app.audioSpectrum.levels : nil)
+                    .frame(width: 15, height: 12).foregroundStyle(app.accentColor)
             }
         }
     }

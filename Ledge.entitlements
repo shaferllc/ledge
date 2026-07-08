@@ -9,5 +9,10 @@
          not by entitlements, so they aren't listed here. -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
+    <!-- Real audio spectrum: a CoreAudio process tap on the default output
+         (macOS 14.4+) needs audio-input under the hardened runtime. Degrades
+         gracefully to a decorative equalizer if unavailable/denied. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
 </dict>
 </plist>

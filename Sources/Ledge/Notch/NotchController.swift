@@ -256,6 +256,10 @@ final class NotchController {
             && app.calendar.nextEvent() != nil
         if playing != liveActivityActive { liveActivityActive = playing }
         if context != contextActive { contextActive = context }
+
+        // Drive the real audio spectrum only while media is playing (both calls
+        // are cheap no-ops once in the desired state).
+        if playing { app.audioSpectrum.start() } else { app.audioSpectrum.stop() }
     }
 
     /// Flash a HUD when the charger is plugged/unplugged or the battery gets low.

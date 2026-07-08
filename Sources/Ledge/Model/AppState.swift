@@ -181,6 +181,7 @@ final class AppState {
     let context = ContextModel()
     let proximity = ProximityModel()
     let claude = ClaudeModel()
+    let audioSpectrum = AudioSpectrumModel(bandCount: 3)
 
     private var didStartModules = false
 

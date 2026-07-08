@@ -87,7 +87,7 @@ struct CollapsedView: View {
                         .stroke(app.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .animation(.linear(duration: 0.5), value: app.nowPlaying.progress)
-                    EqualizerBars()
+                    EqualizerBars(levels: app.audioSpectrum.active ? app.audioSpectrum.levels : nil)
                         .frame(width: 11, height: 9)
                         .foregroundStyle(app.accentColor)
                 }
@@ -230,22 +230,42 @@ private struct Artwork: View {
     }
 }
 
-/// Three animated bars — a compact "audio is playing" indicator.
+/// Three bars indicating audio. Driven by the real audio spectrum when it's
+/// available (`levels`), otherwise a decorative back-and-forth animation.
 struct EqualizerBars: View {
+    /// Real per-band levels (0…1), or nil to animate decoratively.
+    var levels: [Float]? = nil
+
     @State private var phase = false
-    private let heights: [CGFloat] = [12, 6, 10]
+    private let decorative: [CGFloat] = [12, 6, 10]
+    private let maxHeight: CGFloat = 12
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 2) {
             ForEach(0..<3, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 1)
-                    .frame(width: 3, height: phase ? heights[i] : heights[(i + 1) % 3])
+                    .frame(width: 3, height: barHeight(i))
+                    .animation(.easeOut(duration: 0.12), value: levels.map { $0[safe: i] ?? 0 })
             }
         }
         .onAppear {
+            guard levels == nil else { return }
             withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
                 phase.toggle()
             }
         }
+    }
+
+    private func barHeight(_ i: Int) -> CGFloat {
+        if let levels, let level = levels[safe: i] {
+            return max(2, CGFloat(level) * maxHeight)
+        }
+        return phase ? decorative[i] : decorative[(i + 1) % 3]
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
