@@ -71,6 +71,26 @@ fi
 # A drop target so the DMG window offers "drag Ledge into Applications".
 ln -sf /Applications "$STAGE/Applications"
 
+# Un-notarized (ad-hoc) builds trip Gatekeeper on first launch; include the
+# one-time workaround right in the disk image.
+if [ "$NOTARIZE" != "1" ]; then
+  cat > "$STAGE/How to Open Ledge.txt" <<'TXT'
+Opening Ledge the first time
+============================
+
+Ledge isn't notarized yet, so macOS may say it's from an
+"unidentified developer" the first time you open it.
+
+To open it:
+  1. Drag Ledge into your Applications folder (the shortcut here).
+  2. In Applications, RIGHT-CLICK (or Control-click) Ledge.
+  3. Choose "Open", then click "Open" again in the dialog.
+
+You only have to do this once. After that Ledge launches normally.
+It lives in the menu bar and has no Dock icon.
+TXT
+fi
+
 echo "› Creating $DMG"
 hdiutil create -volname "Ledge" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 
