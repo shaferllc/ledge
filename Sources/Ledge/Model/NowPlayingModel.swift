@@ -165,6 +165,9 @@ final class NowPlayingModel {
     func next() { control("next track") }
     func previous() { control("previous track") }
 
+    /// Bring the player app to the front.
+    func openInApp() { run("activate") }
+
     func toggleShuffle() {
         shuffling.toggle()
         switch source {

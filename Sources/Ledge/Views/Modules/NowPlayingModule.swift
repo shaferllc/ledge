@@ -46,6 +46,8 @@ struct NowPlayingModule: View {
     private func trackRow(_ np: NowPlayingModel) -> some View {
         HStack(spacing: 9) {
             Artwork(url: np.artworkURL)
+                .onTapGesture { np.openInApp() }
+                .help("Open in \(np.source == .spotify ? "Spotify" : "Music")")
             VStack(alignment: .leading, spacing: 2) {
                 MarqueeText(text: np.title, font: .systemFont(ofSize: 12, weight: .semibold))
                     .foregroundStyle(.white)
@@ -127,8 +129,29 @@ struct NowPlayingModule: View {
                 )
             }
             .frame(height: 10)
-            Image(systemName: "speaker.wave.3.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.45))
+            outputMenu
         }
+    }
+
+    /// Click the speaker to switch the system audio output device.
+    private var outputMenu: some View {
+        Menu {
+            ForEach(app.audioOutput.devices) { device in
+                Button {
+                    app.audioOutput.select(device)
+                } label: {
+                    Text((device.id == app.audioOutput.currentID ? "✓ " : "") + device.name)
+                }
+            }
+        } label: {
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.system(size: 8)).foregroundStyle(.white.opacity(0.45))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: 14)
+        .onAppear { app.audioOutput.refresh() }
+        .help("Audio output")
     }
 
     private var idle: some View {
