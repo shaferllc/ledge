@@ -85,4 +85,21 @@ final class ClipboardTests: XCTestCase {
         XCTAssertEqual(m.history.count, countBefore,
                        "polling right after our own copy must not duplicate it")
     }
+
+    // History (kind, text, pin state) round-trips through a reload.
+    func testHistoryPersistsAcrossReload() {
+        let defaults = UserDefaults(suiteName: "LedgeTests-\(UUID().uuidString)")!
+        let first = ClipboardModel(defaults: defaults)
+        first.history = [
+            .init(kind: .url, text: "https://apple.com", image: nil, date: Date()),
+            .init(kind: .text, text: "note", image: nil, date: Date()),
+        ]
+        first.togglePin(first.history[0])
+
+        let reloaded = ClipboardModel(defaults: defaults)
+        XCTAssertEqual(reloaded.history.count, 2)
+        XCTAssertEqual(reloaded.history.map(\.text), ["https://apple.com", "note"])
+        XCTAssertEqual(reloaded.history.first?.kind, .url)
+        XCTAssertTrue(reloaded.history.first?.pinned ?? false, "pin state survives reload")
+    }
 }

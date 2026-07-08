@@ -7,7 +7,7 @@ import Observation
 @Observable
 @MainActor
 final class ClipboardModel {
-    enum Kind: Equatable { case text, url, color, image }
+    enum Kind: String, Equatable, Codable { case text, url, color, image }
 
     struct Entry: Identifiable {
         let id = UUID()
@@ -39,10 +39,17 @@ final class ClipboardModel {
         }
     }
 
-    var history: [Entry] = []
+    var history: [Entry] = [] { didSet { persist() } }
     private var lastChangeCount = NSPasteboard.general.changeCount
     private var timer: Timer?
     private let maxUnpinned = 8
+    private let defaults: UserDefaults
+    private let defaultsKey = "clipboardHistory"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        load()
+    }
 
     /// Pinned items first, otherwise most-recent first.
     var display: [Entry] {
@@ -116,6 +123,39 @@ final class ClipboardModel {
 
     func clear() { history.removeAll { !$0.pinned } }
 
+    // MARK: Persistence
+
+    /// A Codable snapshot of an entry; images are stored as PNG data.
+    private struct Stored: Codable {
+        var kind: Kind
+        var text: String
+        var imagePNG: Data?
+        var date: Date
+        var pinned: Bool
+    }
+
+    private func persist() {
+        let snapshot = history.map {
+            Stored(kind: $0.kind, text: $0.text, imagePNG: $0.image?.pngData(),
+                   date: $0.date, pinned: $0.pinned)
+        }
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: defaultsKey)
+        }
+    }
+
+    private func load() {
+        guard let data = defaults.data(forKey: defaultsKey),
+              let snapshot = try? JSONDecoder().decode([Stored].self, from: data) else { return }
+        // Assigning in our own init doesn't fire didSet, so this doesn't re-persist.
+        history = snapshot.map {
+            var e = Entry(kind: $0.kind, text: $0.text,
+                          image: $0.imagePNG.flatMap(NSImage.init(data:)), date: $0.date)
+            e.pinned = $0.pinned
+            return e
+        }
+    }
+
     /// Classifies copied text into a kind (URL / color / plain text).
     nonisolated static func classify(_ text: String) -> Kind {
         if isURL(text) { return .url }
@@ -127,6 +167,16 @@ final class ClipboardModel {
         guard let u = URL(string: s.trimmingCharacters(in: .whitespaces)),
               let scheme = u.scheme?.lowercased() else { return false }
         return (scheme == "http" || scheme == "https") && u.host != nil
+    }
+}
+
+extension NSImage {
+    /// PNG encoding of the image's bitmap, for persistence. Nil if it has no
+    /// rasterizable representation.
+    func pngData() -> Data? {
+        guard let tiff = tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 }
 

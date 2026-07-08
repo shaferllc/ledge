@@ -25,7 +25,15 @@ final class ShelfModel {
         }
     }
 
-    var items: [Item] = []
+    var items: [Item] = [] { didSet { persist() } }
+
+    private let defaults: UserDefaults
+    private let defaultsKey = "shelfBookmarks"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        load()
+    }
 
     var isEmpty: Bool { items.isEmpty }
 
@@ -55,6 +63,28 @@ final class ShelfModel {
     func clear() { items.removeAll() }
 
     var urls: [URL] { items.map(\.url) }
+
+    // MARK: Persistence
+
+    /// Persist dropped files as security-scoped-free bookmarks so they survive
+    /// a rename or move between launches; a plain path array would go stale.
+    private func persist() {
+        let bookmarks = items.compactMap { try? $0.url.bookmarkData() }
+        defaults.set(bookmarks, forKey: defaultsKey)
+    }
+
+    private func load() {
+        guard let datas = defaults.array(forKey: defaultsKey) as? [Data] else { return }
+        // Assigning in our own init doesn't fire didSet, so this doesn't re-persist;
+        // the next real add/remove rewrites the cleaned, refreshed bookmark list.
+        items = datas.compactMap { data in
+            var stale = false
+            guard let url = try? URL(resolvingBookmarkData: data, options: [],
+                                     relativeTo: nil, bookmarkDataIsStale: &stale),
+                  FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return Item(url: url)
+        }
+    }
 
     // MARK: Actions
 
