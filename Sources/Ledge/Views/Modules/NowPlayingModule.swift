@@ -7,20 +7,21 @@ struct NowPlayingModule: View {
     var body: some View {
         let np = app.nowPlaying
         ZStack {
-            background(np)
-            VStack(alignment: .leading, spacing: 7) {
-                header
+            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06))
+            VStack(alignment: .leading, spacing: 6) {
+                header(np)
                 if np.hasTrack {
                     trackRow(np)
                     scrubber(np)
                     transport(np)
+                    volume(np)
                 } else {
                     idle
                 }
             }
             .padding(11)
         }
-        .frame(width: 244)
+        .frame(width: 264)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -28,26 +29,26 @@ struct NowPlayingModule: View {
         )
     }
 
-    private var header: some View {
+    private func header(_ np: NowPlayingModel) -> some View {
         HStack(spacing: 5) {
             Image(systemName: "music.note").font(.system(size: 9, weight: .semibold))
             Text("NOW PLAYING").font(.system(size: 9, weight: .semibold)).tracking(0.6)
+            Spacer()
+            if np.source != .none {
+                Text(np.source == .spotify ? "Spotify" : "Music")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(np.source == .spotify ? Color.green : Color.pink)
+            }
         }
         .foregroundStyle(.white.opacity(0.45))
-    }
-
-    @ViewBuilder private func background(_ np: NowPlayingModel) -> some View {
-        // Plain dark card, matching every other module (no full-bleed album art
-        // backdrop, which showed as a warm smear against the notch).
-        RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06))
     }
 
     private func trackRow(_ np: NowPlayingModel) -> some View {
         HStack(spacing: 9) {
             Artwork(url: np.artworkURL)
             VStack(alignment: .leading, spacing: 2) {
-                Text(np.title).font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white).lineLimit(1)
+                MarqueeText(text: np.title, font: .systemFont(ofSize: 12, weight: .semibold))
+                    .foregroundStyle(.white)
                 Text(np.artist).font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.6)).lineLimit(1)
             }
@@ -77,13 +78,12 @@ struct NowPlayingModule: View {
                         DragGesture(minimumDistance: 0)
                             .onChanged { v in dragFraction = min(1, max(0, v.location.x / geo.size.width)) }
                             .onEnded { v in
-                                let f = min(1, max(0, v.location.x / geo.size.width))
-                                np.seek(toFraction: f)
+                                np.seek(toFraction: min(1, max(0, v.location.x / geo.size.width)))
                                 dragFraction = nil
                             }
                     )
                 }
-                .frame(height: 10)
+                .frame(height: 9)
                 HStack {
                     Text(time(frac * np.duration)).font(.system(size: 8).monospacedDigit())
                     Spacer()
@@ -95,12 +95,39 @@ struct NowPlayingModule: View {
     }
 
     private func transport(_ np: NowPlayingModel) -> some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 0) {
+            toggle("shuffle", on: np.shuffling) { np.toggleShuffle() }
             Spacer()
-            button("backward.fill", 12) { np.previous() }
-            button(np.isPlaying ? "pause.fill" : "play.fill", 16) { np.playPause() }
-            button("forward.fill", 12) { np.next() }
+            button("backward.fill", 13) { np.previous() }
             Spacer()
+            button(np.isPlaying ? "pause.fill" : "play.fill", 17) { np.playPause() }
+            Spacer()
+            button("forward.fill", 13) { np.next() }
+            Spacer()
+            toggle("repeat", on: np.repeating) { np.toggleRepeat() }
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private func volume(_ np: NowPlayingModel) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "speaker.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.45))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.14)).frame(height: 3)
+                    Capsule().fill(Color.white.opacity(0.55))
+                        .frame(width: max(2, geo.size.width * np.volume), height: 3)
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { v in np.setVolume(v.location.x / geo.size.width, dragging: true) }
+                        .onEnded { v in np.setVolume(v.location.x / geo.size.width, dragging: false) }
+                )
+            }
+            .frame(height: 10)
+            Image(systemName: "speaker.wave.3.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.45))
         }
     }
 
@@ -115,7 +142,16 @@ struct NowPlayingModule: View {
     private func button(_ name: String, _ size: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name).font(.system(size: size, weight: .medium))
-                .foregroundStyle(.white).frame(width: 26, height: 24).contentShape(Rectangle())
+                .foregroundStyle(.white).frame(width: 26, height: 22).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggle(_ name: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name).font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(on ? app.accentColor : .white.opacity(0.35))
+                .frame(width: 22, height: 22).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -131,15 +167,48 @@ private struct Artwork: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 7, style: .continuous)
             .fill(Color.white.opacity(0.1))
-            .frame(width: 42, height: 42)
+            .frame(width: 46, height: 46)
             .overlay {
                 if let url {
                     AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { icon }
                 } else { icon }
             }
             .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
     }
     private var icon: some View {
         Image(systemName: "music.note").font(.system(size: 16)).foregroundStyle(.white.opacity(0.4))
+    }
+}
+
+/// Horizontally scrolls its text back and forth when it overflows the width.
+private struct MarqueeText: View {
+    let text: String
+    let font: NSFont
+    @State private var animate = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let textWidth = (text as NSString).size(withAttributes: [.font: font]).width
+            let overflow = max(0, textWidth - geo.size.width)
+            Text(text)
+                .font(Font(font))
+                .fixedSize()
+                .offset(x: animate ? -overflow : 0)
+                .frame(width: geo.size.width, alignment: .leading)
+                .clipped()
+                .onAppear { restart(overflow) }
+                .onChange(of: text) { _, _ in restart(overflow) }
+                .animation(overflow > 0
+                           ? .easeInOut(duration: max(2.5, overflow / 25)).repeatForever(autoreverses: true).delay(1)
+                           : .default, value: animate)
+        }
+        .frame(height: font.pointSize + 3)
+    }
+
+    private func restart(_ overflow: CGFloat) {
+        animate = false
+        guard overflow > 0 else { return }
+        DispatchQueue.main.async { animate = true }
     }
 }
