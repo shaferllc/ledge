@@ -327,6 +327,10 @@ private struct BehaviorSettings: View {
                         toggleRow("display", "Show on non-notch displays",
                                   "Also appear on external / flat-top screens.",
                                   Binding(get: { app.showOnNonNotchDisplays }, set: { app.showOnNonNotchDisplays = $0 }))
+                        Divider()
+                        toggleRow("sparkles", "Context-aware notch",
+                                  "Show the next meeting beside the notch while a calendar app is focused.",
+                                  Binding(get: { app.contextAware }, set: { app.contextAware = $0 }))
                     }
                     card {
                         LaunchAtLoginRow()

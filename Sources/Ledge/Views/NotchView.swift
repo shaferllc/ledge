@@ -37,7 +37,7 @@ struct NotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .tint(app.accentColor)
         .animation(.spring(response: 0.42, dampingFraction: 0.78), value: controller.isExpanded)
-        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: controller.liveActivityActive)
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: controller.collapsedWide)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: controller.hud)
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
             controller.requestExpand()
@@ -68,7 +68,7 @@ struct NotchView: View {
         guard let geo = controller.currentGeometry else { return CGSize(width: 200, height: 32) }
         if controller.isExpanded { return geo.expandedSize }
         if controller.hud != nil { return geo.hudSize }
-        if controller.liveActivityActive { return geo.liveActivitySize }
+        if controller.collapsedWide { return geo.liveActivitySize }
         return geo.collapsedSize
     }
 

@@ -27,6 +27,11 @@ final class NotchController {
     private(set) var isVisible = true
     private(set) var hud: HUDInfo?
     private(set) var liveActivityActive = false
+    private(set) var contextActive = false
+
+    /// The collapsed shape widens beside the notch for either a media
+    /// live-activity or a context glance.
+    var collapsedWide: Bool { liveActivityActive || contextActive }
 
     private var panel: NotchPanel?
     private var dropCatcher: DropCatcherPanel?
@@ -86,6 +91,15 @@ final class NotchController {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.requestExpand()
             }
+        }
+
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_CONTEXT"] == "1" {
+            let now = Date()
+            AppState.shared.calendar.events = [
+                CalendarModel.Event(id: "dbg", title: "Standup", start: now.addingTimeInterval(720),
+                                    end: now.addingTimeInterval(2520), color: nil, isAllDay: false,
+                                    meetingURL: nil, location: nil)
+            ]
         }
     }
 
@@ -192,7 +206,7 @@ final class NotchController {
     private var shapeScreenRect: NSRect {
         guard let geo = geometry else { return .zero }
         if hud != nil { return geo.hudFrame }
-        if liveActivityActive { return geo.liveActivityFrame }
+        if collapsedWide { return geo.liveActivityFrame }
         return geo.collapsedFrame
     }
 
@@ -210,10 +224,16 @@ final class NotchController {
     }
 
     private func refreshLiveActivity() {
-        let np = AppState.shared.nowPlaying
-        let active = np.isPlaying && np.hasTrack
-        guard active != liveActivityActive else { return }
-        liveActivityActive = active     // SwiftUI animates the shape resize
+        let app = AppState.shared
+        // Debug: force the context glance even if media is playing, for capture.
+        let debugCtx = ProcessInfo.processInfo.environment["LEDGE_DEBUG_CONTEXT"] == "1"
+        let playing = !debugCtx && app.nowPlaying.isPlaying && app.nowPlaying.hasTrack
+        // Media takes priority; otherwise a context glance if one is available.
+        let context = !playing && app.contextAware
+            && app.context.isCalendarAppFront
+            && app.calendar.nextEvent() != nil
+        if playing != liveActivityActive { liveActivityActive = playing }
+        if context != contextActive { contextActive = context }
     }
 
     /// Flash a HUD when the charger is plugged/unplugged or the battery gets low.

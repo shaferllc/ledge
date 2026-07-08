@@ -138,6 +138,11 @@ final class AppState {
     var panelSize: PanelSize {
         didSet { UserDefaults.standard.set(panelSize.rawValue, forKey: "panelSize"); onLayoutChange?() }
     }
+    /// Adapt the collapsed notch to the frontmost app (e.g. next-meeting glance
+    /// while a calendar app is focused).
+    var contextAware: Bool {
+        didSet { UserDefaults.standard.set(contextAware, forKey: "contextAware") }
+    }
 
     /// Called when a setting that affects panel geometry changes.
     var onLayoutChange: (() -> Void)?
@@ -163,6 +168,7 @@ final class AppState {
     let teleprompter = TeleprompterModel()
     let reminders = ReminderModel()
     let audioOutput = AudioOutputModel()
+    let context = ContextModel()
 
     private var didStartModules = false
 
@@ -190,6 +196,7 @@ final class AppState {
         expandOnClick = UserDefaults.standard.object(forKey: "expandOnClick") as? Bool ?? false
         accentColorName = UserDefaults.standard.string(forKey: "accentColorName") ?? "blue"
         panelSize = PanelSize(rawValue: UserDefaults.standard.string(forKey: "panelSize") ?? "") ?? .medium
+        contextAware = UserDefaults.standard.object(forKey: "contextAware") as? Bool ?? true
     }
 
     /// Kick off the background pollers for enabled modules.
@@ -207,6 +214,7 @@ final class AppState {
         if enabledModules.contains(.network), !skipPrompts { network.start() }
         if enabledModules.contains(.storage) { storage.start() }
         if enabledModules.contains(.reminders), !skipPrompts { reminders.start() }
+        if !skipPrompts { context.start() }
     }
 
     /// Start a module's poller on demand (e.g. when newly enabled in Settings).

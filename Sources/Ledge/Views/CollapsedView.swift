@@ -13,9 +13,51 @@ struct CollapsedView: View {
             hudView(hud)
         } else if controller.liveActivityActive {
             liveActivity
+        } else if controller.contextActive {
+            contextGlance
         } else {
             idle
         }
+    }
+
+    // MARK: Context glance (beside the notch — next meeting while a calendar app is up)
+
+    private var contextGlance: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+            HStack(spacing: 0) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(app.accentColor)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                Color.clear.frame(width: notchWidth)
+                if let event = app.calendar.nextEvent(ctx.date) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(event.title)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(Self.countdown(to: event.start, now: ctx.date))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Color.clear.frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// "in 12m" / "now" / "in 2h" relative to an event start.
+    private static func countdown(to start: Date, now: Date) -> String {
+        let secs = Int(start.timeIntervalSince(now))
+        if secs <= 0 { return "now" }
+        if secs < 3600 { return "in \(max(1, secs / 60))m" }
+        let h = secs / 3600, m = (secs % 3600) / 60
+        return m > 0 ? "in \(h)h \(m)m" : "in \(h)h"
     }
 
     // MARK: Idle
