@@ -45,8 +45,6 @@ struct ClaudeView: View {
     private var displayText: String {
         if let error = model.errorText { return error }
         if !model.answer.isEmpty { return model.answer }
-        return model.hasKey
-            ? "Type a question and press Return."
-            : "Set your Anthropic API key from the menu bar → “Set Claude API Key…”."
+        return "Ask anything and press Return — answered by your local Claude Code CLI."
     }
 }

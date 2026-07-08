@@ -110,6 +110,10 @@ final class NotchController {
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_CLAUDE"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.toggleClaude()
+                if let seed = ProcessInfo.processInfo.environment["LEDGE_DEBUG_CLAUDE_ASK"] {
+                    AppState.shared.claude.prompt = seed
+                    AppState.shared.claude.ask()
+                }
             }
         }
 
