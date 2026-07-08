@@ -58,6 +58,14 @@ struct NotchGeometry {
         return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
     }
 
+    /// Drag destination over the notch: as wide as the notch and extending a
+    /// little below it, so dragging a file up to the notch reliably hits it.
+    var dropCatcherFrame: NSRect {
+        let w = notchWidth + 30
+        let h = notchHeight + 30
+        return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
+    }
+
     /// HUD frame: a small pill hanging just below the notch (volume/mute).
     var hudFrame: NSRect {
         let w = max(notchWidth + 40, 220)

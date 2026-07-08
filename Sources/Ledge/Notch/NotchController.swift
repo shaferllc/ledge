@@ -27,6 +27,7 @@ final class NotchController {
     private(set) var liveActivityActive = false
 
     private var panel: NotchPanel?
+    private var dropCatcher: DropCatcherPanel?
     private var geometry: NotchGeometry?
     private var collapseWorkItem: DispatchWorkItem?
     private var hudWorkItem: DispatchWorkItem?
@@ -47,17 +48,21 @@ final class NotchController {
         self.geometry = geo
 
         let panel = NotchPanel(contentRect: geo.expandedFrame)
-        let container = NotchContainerView()
-        container.shapeSize = { [weak self] in self?.currentShapeSize ?? .zero }
         let host = NSHostingView(rootView: NotchView().environment(AppState.shared))
-        panel.contentView = container
-        host.frame = container.bounds
+        host.frame = panel.contentLayoutRect
         host.autoresizingMask = [.width, .height]
-        container.addSubview(host)
+        panel.contentView = host
         panel.setFrame(geo.expandedFrame, display: true)
         panel.orderFrontRegardless()
         self.panel = panel
         refreshMouseIgnore()
+
+        // A small always-on drag destination over the notch: dropping / dragging
+        // a file here opens the dashboard (the idle main panel ignores mouse
+        // events, so it can't catch drags itself).
+        let catcher = DropCatcherPanel(contentRect: geo.dropCatcherFrame)
+        catcher.orderFrontRegardless()
+        self.dropCatcher = catcher
 
         startMouseMonitoring()
         startCollapsedStateTimer()
@@ -112,20 +117,12 @@ final class NotchController {
     /// Idle window passes clicks through (so it never blocks the menu bar).
     /// Exceptions: while expanded the dashboard must be interactive, and in
     /// click-to-expand mode the idle notch must receive the click.
-    /// The panel now accepts events everywhere; NotchContainerView.hitTest
-    /// decides per-point whether to handle or pass through (based on the current
-    /// shape), so clicks/drags on the notch work while the menu bar stays free.
+    /// Idle window passes clicks through (so it never blocks the menu bar);
+    /// interactive while expanded or in click-to-expand mode. Drags onto the
+    /// notch are handled by the separate DropCatcherPanel.
     func refreshMouseIgnore() {
-        panel?.ignoresMouseEvents = false
-    }
-
-    /// Size of the visible notch shape for the current state (used by hit-testing).
-    var currentShapeSize: CGSize {
-        guard let geo = geometry else { return .zero }
-        if isExpanded { return geo.expandedSize }
-        if hud != nil { return geo.hudSize }
-        if liveActivityActive { return geo.liveActivitySize }
-        return geo.collapsedSize
+        let interactive = isExpanded || AppState.shared.expandOnClick
+        panel?.ignoresMouseEvents = !interactive
     }
 
     private func resolveGeometry() -> NotchGeometry {
@@ -252,6 +249,7 @@ final class NotchController {
         let geo = resolveGeometry()
         self.geometry = geo
         panel?.setFrame(geo.expandedFrame, display: true)
+        dropCatcher?.setFrame(geo.dropCatcherFrame, display: true)
         refreshMouseIgnore()
     }
 
