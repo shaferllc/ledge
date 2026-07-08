@@ -34,6 +34,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller.start()
 
+        // First-run welcome: introduce the app and request permissions up front
+        // (also forceable with LEDGE_DEBUG_ONBOARDING=1 for screenshots).
+        if OnboardingWindowController.shouldShowOnLaunch
+            || ProcessInfo.processInfo.environment["LEDGE_DEBUG_ONBOARDING"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                OnboardingWindowController.show()
+            }
+        }
+
         // Global hot key: ⌘⌥N toggles the dashboard.
         hotKey = HotKey(keyCode: UInt32(kVK_ANSI_N),
                         modifiers: UInt32(cmdKey | optionKey)) {

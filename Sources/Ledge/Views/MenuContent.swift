@@ -35,6 +35,10 @@ struct MenuContent: View {
         }
         .keyboardShortcut(",")
 
+        Button("Set Up Permissions…") {
+            OnboardingWindowController.show()
+        }
+
         LaunchAtLoginToggle()
 
         Divider()
