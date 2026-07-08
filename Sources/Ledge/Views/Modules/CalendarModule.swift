@@ -9,7 +9,8 @@ struct CalendarModule: View {
         ModuleCard(title: "Calendar", symbol: "calendar") {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 HStack(alignment: .top, spacing: 12) {
-                    MonthGrid(now: context.date, eventDays: cal.eventDays)
+                    MonthGrid(now: context.date, eventDays: cal.eventDays,
+                              selectedDay: cal.selectedDay) { cal.select(day: $0) }
                         .frame(width: 148)
                     Divider().overlay(Color.white.opacity(0.08))
                     agenda(cal, now: context.date)
@@ -22,12 +23,20 @@ struct CalendarModule: View {
     // MARK: Agenda (right column)
 
     @ViewBuilder private func agenda(_ cal: CalendarModel, now: Date) -> some View {
+        let events = cal.agendaEvents
+        let showNext = cal.showingToday
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+            HStack(spacing: 5) {
+                Text(cal.agendaDate(), format: .dateTime.weekday(.wide).month(.abbreviated).day())
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
                 Spacer()
+                if !cal.showingToday {
+                    Button { cal.clearSelection() } label: {
+                        Text("Today").font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(app.accentColor)
+                    }.buttonStyle(.plain).help("Back to today")
+                }
                 Button { cal.openCalendar() } label: {
                     Image(systemName: "arrow.up.forward.square")
                         .font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
@@ -35,15 +44,15 @@ struct CalendarModule: View {
                 .buttonStyle(.plain).help("Open Calendar")
             }
 
-            if let next = cal.nextEvent(now) {
+            if showNext, let next = cal.nextEvent(now) {
                 nextBanner(next, now: now)
             }
 
-            if cal.events.isEmpty {
+            if events.isEmpty {
                 emptyState(cal)
             } else {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(cal.events.prefix(cal.nextEvent(now) != nil ? 3 : 4)) { ev in
+                    ForEach(events.prefix(showNext && cal.nextEvent(now) != nil ? 3 : 4)) { ev in
                         eventRow(ev, now: now)
                     }
                 }
@@ -94,7 +103,8 @@ struct CalendarModule: View {
         } else {
             HStack(spacing: 5) {
                 Image(systemName: "checkmark.circle").font(.system(size: 10))
-                Text("Nothing left today").font(.system(size: 10))
+                Text(cal.showingToday ? "Nothing left today" : "No events")
+                    .font(.system(size: 10))
             }
             .foregroundStyle(.white.opacity(0.4))
         }
@@ -113,6 +123,8 @@ struct CalendarModule: View {
 private struct MonthGrid: View {
     let now: Date
     let eventDays: Set<Int>
+    let selectedDay: Int?
+    let onSelect: (Int) -> Void
 
     private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
 
@@ -153,16 +165,22 @@ private struct MonthGrid: View {
 
     @ViewBuilder private func dayCell(_ day: Int?, isToday: Bool) -> some View {
         if let day {
-            Text("\(day)")
-                .font(.system(size: 9, weight: isToday ? .bold : .regular))
-                .foregroundStyle(isToday ? .black : .white.opacity(0.85))
-                .frame(width: 15, height: 15)
-                .background(Circle().fill(isToday ? Color.accentColor : .clear))
-                .overlay(alignment: .bottom) {
-                    Circle().fill(eventDays.contains(day) && !isToday ? Color.accentColor : .clear)
-                        .frame(width: 3, height: 3).offset(y: 2)
-                }
-                .frame(maxWidth: .infinity)
+            let isSelected = day == selectedDay && !isToday
+            Button { onSelect(day) } label: {
+                Text("\(day)")
+                    .font(.system(size: 9, weight: isToday ? .bold : .regular))
+                    .foregroundStyle(isToday ? .black : .white.opacity(0.85))
+                    .frame(width: 15, height: 15)
+                    .background(Circle().fill(isToday ? Color.accentColor : .clear))
+                    .overlay(Circle().stroke(Color.accentColor, lineWidth: isSelected ? 1.2 : 0))
+                    .overlay(alignment: .bottom) {
+                        Circle().fill(eventDays.contains(day) && !isToday ? Color.accentColor : .clear)
+                            .frame(width: 3, height: 3).offset(y: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         } else {
             Color.clear.frame(height: 15).frame(maxWidth: .infinity)
         }

@@ -52,6 +52,13 @@ enum SelfTest {
                   end: base.addingTimeInterval(16200), color: NSColor.systemGreen.cgColor,
                   isAllDay: false, meetingURL: nil, location: nil),
         ]
+        app.calendar.selectedDay = 18
+        app.calendar.selectedEvents = [
+            .init(id: "s1", title: "Dentist", start: base, end: base,
+                  color: NSColor.systemOrange.cgColor, isAllDay: false, meetingURL: nil, location: nil),
+            .init(id: "s2", title: "Flight to SFO", start: base, end: base,
+                  color: NSColor.systemTeal.cgColor, isAllDay: false, meetingURL: nil, location: nil),
+        ]
 
         // Render the module row directly (ImageRenderer doesn't snapshot the
         // ScrollView ExpandedView uses at runtime, so we lay the cards out flat).

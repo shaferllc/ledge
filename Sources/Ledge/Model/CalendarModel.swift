@@ -24,11 +24,27 @@ final class CalendarModel {
     var events: [Event] = []
     /// Day-of-month numbers in the current month that have at least one event.
     var eventDays: Set<Int> = []
+    /// A day (of the current month) the user tapped to preview; nil = today.
+    var selectedDay: Int?
+    var selectedEvents: [Event] = []
     var accessGranted = false
     var didRequest = false
 
     private let store = EKEventStore()
     private var timer: Timer?
+
+    var todayDay: Int { Calendar.current.component(.day, from: Date()) }
+    var showingToday: Bool { selectedDay == nil || selectedDay == todayDay }
+    var agendaEvents: [Event] { showingToday ? events : selectedEvents }
+
+    /// The date the agenda is showing.
+    func agendaDate() -> Date { dateFor(day: selectedDay ?? todayDay) ?? Date() }
+
+    private func dateFor(day: Int) -> Date? {
+        let cal = Calendar.current
+        guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: Date())) else { return nil }
+        return cal.date(byAdding: .day, value: day - 1, to: monthStart)
+    }
 
     func start() {
         requestAccess()
@@ -87,6 +103,32 @@ final class CalendarModel {
             }
             eventDays = days
         }
+    }
+
+    // MARK: Day selection
+
+    func select(day: Int) {
+        if day == todayDay { clearSelection(); return }
+        selectedDay = day
+        guard accessGranted, let date = dateFor(day: day) else { selectedEvents = []; return }
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: date)
+        guard let end = cal.date(byAdding: .day, value: 1, to: start) else { return }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        selectedEvents = store.events(matching: predicate)
+            .sorted { $0.startDate < $1.startDate }
+            .prefix(8)
+            .map { ek in
+                Event(id: ek.eventIdentifier ?? UUID().uuidString,
+                      title: ek.title ?? "Event", start: ek.startDate, end: ek.endDate,
+                      color: ek.calendar?.cgColor, isAllDay: ek.isAllDay,
+                      meetingURL: Self.meetingURL(for: ek), location: ek.location)
+            }
+    }
+
+    func clearSelection() {
+        selectedDay = nil
+        selectedEvents = []
     }
 
     // MARK: Actions
