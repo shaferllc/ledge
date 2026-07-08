@@ -39,6 +39,12 @@ struct MenuContent: View {
             OnboardingWindowController.show()
         }
 
+        if LedgeCLIInstaller.isBundled {
+            Button("Install ‘ledge’ CLI…") {
+                LedgeCLIInstaller.install()
+            }
+        }
+
         LaunchAtLoginToggle()
 
         Divider()

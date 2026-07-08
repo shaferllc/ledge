@@ -2,12 +2,14 @@ import SwiftUI
 import AppKit
 import Observation
 
-/// A transient heads-up display shown in the notch (e.g. on volume change).
+/// A transient heads-up display shown in the notch (e.g. on volume change, or
+/// a message / progress pushed by the `ledge` CLI).
 struct HUDInfo: Equatable {
-    enum Kind: Equatable { case volume, mute, brightness, charging, lowBattery }
+    enum Kind: Equatable { case volume, mute, brightness, charging, lowBattery, message, progress }
     var kind: Kind
     var level: Float          // 0…1
     var charging: Bool = false
+    var text: String? = nil   // .message / .progress label
 }
 
 /// Owns the floating notch panel. The panel's window stays fixed at the full
@@ -69,6 +71,7 @@ final class NotchController {
         startCollapsedStateTimer()
         startVolumeHUD()
         startBrightnessHUD()
+        startCommandReceiver()
 
         AppState.shared.onLayoutChange = { [weak self] in self?.repositionForScreenChange() }
 
@@ -248,13 +251,59 @@ final class NotchController {
         brightnessWatcher.start()
     }
 
-    private func showHUD(_ info: HUDInfo) {
+    /// Shows a HUD for `duration` seconds, or indefinitely when `duration` is
+    /// nil (used by CLI progress, which sticks until the next update).
+    private func showHUD(_ info: HUDInfo, duration: TimeInterval? = 1.3) {
         guard !isExpanded else { return }
         hud = info
         hudWorkItem?.cancel()
+        hudWorkItem = nil
+        guard let duration else { return }
         let work = DispatchWorkItem { [weak self] in self?.dismissHUD() }
         hudWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+    }
+
+    // MARK: External commands (the `ledge` CLI, via DistributedNotificationCenter)
+
+    private func startCommandReceiver() {
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.tomshafer.ledge.command"),
+            object: nil, queue: .main
+        ) { [weak self] note in
+            // Pull out plain Strings (Sendable) before hopping — a Notification
+            // isn't Sendable. Delivered on the main queue, so we're on main.
+            let info = note.userInfo
+            let cmd = info?["cmd"] as? String
+            let text = info?["text"] as? String
+            let value = info?["value"] as? String
+            MainActor.assumeIsolated { self?.handleCommand(cmd: cmd, textRaw: text, valueRaw: value) }
+        }
+    }
+
+    private func handleCommand(cmd: String?, textRaw: String?, valueRaw: String?) {
+        guard let cmd else { return }
+        let text = textRaw.flatMap { $0.isEmpty ? nil : $0 }
+        let value = valueRaw.flatMap(Double.init)
+        switch cmd {
+        case "notify":
+            guard let text else { return }
+            showHUD(HUDInfo(kind: .message, level: 1, text: text), duration: 2.6)
+        case "progress":
+            let frac = Float(min(max(value ?? 0, 0), 1))
+            let done = frac >= 0.999
+            showHUD(HUDInfo(kind: .progress, level: frac, text: text), duration: done ? 1.6 : nil)
+        case "timer":
+            let seconds = Int(value ?? 0)
+            guard seconds > 0 else { return }
+            AppState.shared.countdown.startPreset(seconds)
+            showHUD(HUDInfo(kind: .message, level: 1, text: text.map { "⏱ \($0)" } ?? "Timer started"),
+                    duration: 2.2)
+        case "clear":
+            dismissHUD()
+        default:
+            break
+        }
     }
 
     private func dismissHUD() {

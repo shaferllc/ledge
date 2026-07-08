@@ -62,6 +62,25 @@ identity across launches.
 Ledge runs as a menu-bar utility (no Dock icon). It lives above the menu bar so
 it can draw into the notch region.
 
+## The `ledge` CLI
+
+Ledge ships a tiny companion command that pushes ambient status into the notch —
+turn the notch into a status display for builds, deploys, and long scripts.
+Install it from the menu bar → **Install ‘ledge’ CLI…** (symlinks it onto your
+PATH), then:
+
+```sh
+ledge notify "Deploy ✅  prod is live"     # flash a message in the notch
+ledge progress 0.42 "Uploading build"      # a progress bar (sticky until 1.0)
+ledge timer 25m Focus                       # start a countdown
+ledge clear                                 # dismiss the current HUD
+
+make 2>&1 | tail -1; ledge notify "Build done"
+```
+
+It's fire-and-forget over a distributed notification — if Ledge isn't running,
+the command is a harmless no-op.
+
 ## Distribution
 
 `make-dmg.sh` builds a distributable `build/Ledge.dmg` (the app plus an

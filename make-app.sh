@@ -44,8 +44,12 @@ mkdir -p "$APP_DEST"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-cp .build/release/Ledge "$APP/Contents/MacOS/Ledge"
-cp AppIcon.icns         "$APP/Contents/Resources/AppIcon.icns"
+cp .build/release/Ledge    "$APP/Contents/MacOS/Ledge"
+# The `ledge` CLI lives in Resources, not MacOS: on the case-insensitive macOS
+# filesystem "MacOS/ledge" and "MacOS/Ledge" are the same path and would clobber
+# the app binary. The installer symlinks /usr/local/bin/ledge to it.
+cp .build/release/LedgeCLI "$APP/Contents/Resources/ledge"
+cp AppIcon.icns            "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -77,12 +81,16 @@ PLIST
 
 if [ "$SIGN_IDENTITY" = "-" ]; then
   # Ad-hoc sign so Automation/Calendar permissions bind to a stable identity.
+  # Nested executables (the ledge CLI) must be signed before the outer bundle.
   echo "› Ad-hoc signing"
+  codesign --force --sign - "$APP/Contents/Resources/ledge" >/dev/null 2>&1 || true
   codesign --force --sign - "$APP/Contents/MacOS/Ledge" >/dev/null 2>&1 || true
   codesign --force --sign - "$APP" >/dev/null 2>&1 || true
 else
   # Developer ID signing with the hardened runtime, required for notarization.
   echo "› Signing with: $SIGN_IDENTITY (hardened runtime)"
+  codesign --force --options runtime --timestamp \
+    --sign "$SIGN_IDENTITY" "$APP/Contents/Resources/ledge"
   codesign --force --options runtime --timestamp \
     --entitlements Ledge.entitlements \
     --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/Ledge"

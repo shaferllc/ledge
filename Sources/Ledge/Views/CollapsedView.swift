@@ -59,7 +59,22 @@ struct CollapsedView: View {
 
     // MARK: Volume HUD (below the notch)
 
+    @ViewBuilder
     private func hudView(_ hud: HUDInfo) -> some View {
+        Group {
+            switch hud.kind {
+            case .message:   messageHUD(hud)
+            case .progress:  progressHUD(hud)
+            default:         iconBarHUD(hud)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(.bottom, 10)
+    }
+
+    /// System HUDs: an icon plus a level bar (volume / brightness / battery).
+    private func iconBarHUD(_ hud: HUDInfo) -> some View {
         HStack(spacing: 8) {
             Image(systemName: hudSymbol(hud))
                 .font(.system(size: 12, weight: .medium))
@@ -74,9 +89,45 @@ struct CollapsedView: View {
             }
             .frame(height: 5)
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .padding(.bottom, 10)
+    }
+
+    /// CLI `ledge notify` — a bell icon and a one-line message.
+    private func messageHUD(_ hud: HUDInfo) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "bell.fill")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(app.accentColor)
+            Text(hud.text ?? "")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+        }
+    }
+
+    /// CLI `ledge progress` — an optional label + percent over a fill bar.
+    private func progressHUD(_ hud: HUDInfo) -> some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 6) {
+                Text(hud.text ?? "Progress")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(Int((hud.level * 100).rounded()))%")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .monospacedDigit()
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.18))
+                    Capsule().fill(app.accentColor)
+                        .frame(width: max(3, geo.size.width * CGFloat(hud.level)))
+                        .animation(.easeOut(duration: 0.25), value: hud.level)
+                }
+            }
+            .frame(height: 5)
+        }
     }
 
     private func hudSymbol(_ hud: HUDInfo) -> String {
@@ -86,6 +137,7 @@ struct CollapsedView: View {
         case .brightness: hud.level < 0.34 ? "sun.min.fill" : "sun.max.fill"
         case .charging: hud.charging ? "bolt.fill" : "powerplug"
         case .lowBattery: "battery.25"
+        default: "bell.fill"
         }
     }
 
@@ -104,7 +156,7 @@ struct CollapsedView: View {
         case .brightness: .yellow
         case .charging: .green
         case .lowBattery: .red
-        case .volume: app.accentColor
+        default: app.accentColor
         }
     }
 
