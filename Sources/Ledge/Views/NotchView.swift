@@ -74,6 +74,6 @@ struct NotchView: View {
 
     private var notchInset: CGFloat {
         // Clear the physical notch with a comfortable margin below it.
-        (controller.currentGeometry?.notchHeight ?? 32) + 12
+        (controller.currentGeometry?.notchHeight ?? 32) + 24
     }
 }

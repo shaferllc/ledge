@@ -31,7 +31,7 @@ struct NotchGeometry {
         }
 
         self.expandedWidth = panelSize.width
-        self.expandedHeight = self.notchHeight + panelSize.moduleHeight + 40
+        self.expandedHeight = self.notchHeight + panelSize.moduleHeight + 52
     }
 
     // Sizes of the black notch SHAPE in each state (the window itself stays
