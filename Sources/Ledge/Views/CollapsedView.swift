@@ -83,6 +83,7 @@ struct CollapsedView: View {
         switch hud.kind {
         case .mute: "speaker.slash.fill"
         case .volume: volumeSymbol(hud.level)
+        case .brightness: hud.level < 0.34 ? "sun.min.fill" : "sun.max.fill"
         case .charging: hud.charging ? "bolt.fill" : "powerplug"
         case .lowBattery: "battery.25"
         }
@@ -90,6 +91,7 @@ struct CollapsedView: View {
 
     private func hudIconColor(_ hud: HUDInfo) -> Color {
         switch hud.kind {
+        case .brightness: .yellow
         case .charging: .green
         case .lowBattery: .red
         default: .white
@@ -99,6 +101,7 @@ struct CollapsedView: View {
     private func hudFill(_ hud: HUDInfo) -> Color {
         switch hud.kind {
         case .mute: Color.white.opacity(0.4)
+        case .brightness: .yellow
         case .charging: .green
         case .lowBattery: .red
         case .volume: app.accentColor

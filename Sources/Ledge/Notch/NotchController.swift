@@ -4,7 +4,7 @@ import Observation
 
 /// A transient heads-up display shown in the notch (e.g. on volume change).
 struct HUDInfo: Equatable {
-    enum Kind: Equatable { case volume, mute, charging, lowBattery }
+    enum Kind: Equatable { case volume, mute, brightness, charging, lowBattery }
     var kind: Kind
     var level: Float          // 0…1
     var charging: Bool = false
@@ -34,6 +34,7 @@ final class NotchController {
     private var mouseMonitors: [Any] = []
     private var collapsedTimer: Timer?
     private let volumeWatcher = VolumeWatcher()
+    private let brightnessWatcher = BrightnessWatcher()
     private var suppressFirstHUD = true
     private var debugLocked = false
     private var prevCharging: Bool?
@@ -67,6 +68,7 @@ final class NotchController {
         startMouseMonitoring()
         startCollapsedStateTimer()
         startVolumeHUD()
+        startBrightnessHUD()
 
         AppState.shared.onLayoutChange = { [weak self] in self?.repositionForScreenChange() }
 
@@ -227,6 +229,13 @@ final class NotchController {
             self.showHUD(HUDInfo(kind: muted ? .mute : .volume, level: muted ? 0 : level))
         }
         volumeWatcher.start()
+    }
+
+    private func startBrightnessHUD() {
+        brightnessWatcher.onChange = { [weak self] level in
+            self?.showHUD(HUDInfo(kind: .brightness, level: level))
+        }
+        brightnessWatcher.start()
     }
 
     private func showHUD(_ info: HUDInfo) {
