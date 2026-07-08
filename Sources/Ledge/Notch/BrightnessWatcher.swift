@@ -37,11 +37,18 @@ final class BrightnessWatcher {
         guard let getBrightness else { return }
         var value: Float = 0
         guard getBrightness(CGMainDisplayID(), &value) == 0 else { return }
+        let v = max(0, min(1, value))
+        defer { last = v }
         // Skip the first reading so we don't flash a HUD at launch.
-        if !primed { primed = true; last = value; return }
-        if abs(value - last) > 0.004 {
-            last = value
-            onChange?(max(0, min(1, value)))
-        }
+        if !primed { primed = true; return }
+
+        // Only fire for a sharp, single-poll jump. A brightness-key press steps
+        // ~1/16 (0.0625) at once; automatic ambient / True Tone adjustments ramp
+        // in much smaller per-poll increments — those used to spam the HUD.
+        guard abs(v - last) >= brightnessStep else { return }
+        onChange?(v)
     }
+
+    /// Minimum single-poll change treated as a deliberate brightness-key press.
+    private let brightnessStep: Float = 0.045
 }
