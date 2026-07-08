@@ -80,13 +80,24 @@ final class PermissionsModel: NSObject, CLLocationManagerDelegate {
 
     func status(_ p: Permission) -> Status { statuses[p] ?? .notDetermined }
 
+    /// Set once we've confirmed automation access this session — the automation
+    /// status can only be read while a player is running, so we remember a yes.
+    private var mediaGranted = false
+
     /// Re-read every permission's current status without prompting.
     func refresh() {
         statuses[.calendar]  = Self.map(EKEventStore.authorizationStatus(for: .event))
         statuses[.reminders] = Self.map(EKEventStore.authorizationStatus(for: .reminder))
         statuses[.camera]    = Self.map(AVCaptureDevice.authorizationStatus(for: .video))
         statuses[.location]  = Self.map(location.authorizationStatus)
-        statuses[.media]     = Self.automationStatus(bundleID: "com.apple.Music", prompt: false)
+
+        // Automation is only knowable while the target app runs; otherwise the
+        // check returns "not running". Sticky-remember a prior yes.
+        switch Self.automationStatus(bundleID: "com.apple.Music", prompt: false) {
+        case .authorized:    mediaGranted = true; statuses[.media] = .authorized
+        case .denied:        mediaGranted = false; statuses[.media] = .denied
+        case .notDetermined: statuses[.media] = mediaGranted ? .authorized : .notDetermined
+        }
     }
 
     /// Trigger the system prompt for one permission (no-op if already decided
@@ -108,15 +119,25 @@ final class PermissionsModel: NSObject, CLLocationManagerDelegate {
         case .location:
             location.requestWhenInUseAuthorization()
         case .media:
-            // AEDeterminePermissionToAutomateTarget blocks until the user
-            // answers, so prompt off the main actor and prompt for Spotify too
-            // when it's installed.
+            // AEDeterminePermissionToAutomateTarget only prompts while the target
+            // app is running, so instead send a real (benign) Apple Event via
+            // osascript — the same path Now Playing uses. That triggers the
+            // Automation consent dialog (launching the player if needed) and, on
+            // approval, returns output. Blocks on the prompt, so run it detached.
+            let hasSpotify = Self.spotifyInstalled
             Task.detached {
-                _ = Self.automationStatus(bundleID: "com.apple.Music", prompt: true)
-                if await MainActor.run(body: { Self.spotifyInstalled }) {
-                    _ = Self.automationStatus(bundleID: "com.spotify.client", prompt: true)
+                var granted = false
+                if AppleScriptRunner.run(#"tell application id "com.apple.Music" to get name"#) != nil {
+                    granted = true
                 }
-                await MainActor.run { [weak self] in self?.refresh() }
+                if hasSpotify,
+                   AppleScriptRunner.run(#"tell application id "com.spotify.client" to get name"#) != nil {
+                    granted = true
+                }
+                await MainActor.run { [weak self] in
+                    if granted { self?.mediaGranted = true }
+                    self?.refresh()
+                }
             }
         }
     }
