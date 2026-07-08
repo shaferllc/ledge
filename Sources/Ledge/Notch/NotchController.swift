@@ -72,6 +72,12 @@ final class NotchController {
 
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_EXPAND"] == "1" {
             debugLocked = true
+            AppState.shared.shelf.add([
+                URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app"),
+                URL(fileURLWithPath: "/bin/ls"),
+                URL(fileURLWithPath: "/etc/hosts"),
+                URL(fileURLWithPath: "/System/Applications/Music.app"),
+            ])
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.requestExpand()
             }

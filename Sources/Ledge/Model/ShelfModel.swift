@@ -12,11 +12,32 @@ final class ShelfModel {
         let url: URL
         var name: String { url.lastPathComponent }
         var icon: NSImage { NSWorkspace.shared.icon(forFile: url.path) }
+
+        private var resourceValues: URLResourceValues? {
+            try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+        }
+        var isDirectory: Bool { resourceValues?.isDirectory ?? false }
+        var byteCount: Int64? { resourceValues?.fileSize.map(Int64.init) }
+        var sizeString: String {
+            if isDirectory { return "Folder" }
+            if let b = byteCount { return ByteCountFormatter.string(fromByteCount: b, countStyle: .file) }
+            return url.pathExtension.uppercased()
+        }
     }
 
     var items: [Item] = []
 
     var isEmpty: Bool { items.isEmpty }
+
+    var totalSizeString: String {
+        let total = items.compactMap(\.byteCount).reduce(0, +)
+        return total > 0 ? ByteCountFormatter.string(fromByteCount: total, countStyle: .file) : ""
+    }
+
+    func copyPath(_ item: Item) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(item.url.path, forType: .string)
+    }
 
     func add(_ urls: [URL]) {
         let existing = Set(items.map(\.url.standardizedFileURL))
