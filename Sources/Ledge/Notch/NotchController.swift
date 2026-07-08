@@ -80,6 +80,19 @@ final class NotchController {
 
         AppState.shared.onLayoutChange = { [weak self] in self?.repositionForScreenChange() }
 
+        // Lean-in to expand (opt-in, camera-based).
+        AppState.shared.proximity.onProximityChange = { [weak self] near in
+            guard AppState.shared.leanToExpand else { return }
+            if near { self?.requestExpand() } else { self?.requestCollapse() }
+        }
+        AppState.shared.onLeanToExpandChange = { on in
+            if on { AppState.shared.proximity.start() } else { AppState.shared.proximity.stop() }
+        }
+        if AppState.shared.leanToExpand
+            || ProcessInfo.processInfo.environment["LEDGE_DEBUG_PROXIMITY"] == "1" {
+            AppState.shared.proximity.start()
+        }
+
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_EXPAND"] == "1" {
             debugLocked = true
             AppState.shared.shelf.add([

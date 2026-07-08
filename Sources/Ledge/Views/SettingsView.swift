@@ -331,6 +331,10 @@ private struct BehaviorSettings: View {
                         toggleRow("sparkles", "Context-aware notch",
                                   "Show the next meeting beside the notch while a calendar app is focused.",
                                   Binding(get: { app.contextAware }, set: { app.contextAware = $0 }))
+                        Divider()
+                        toggleRow("face.smiling", "Lean in to expand",
+                                  "Use the front camera to open the notch when you lean toward the screen. Keeps the camera active.",
+                                  Binding(get: { app.leanToExpand }, set: { app.leanToExpand = $0 }))
                     }
                     card {
                         LaunchAtLoginRow()

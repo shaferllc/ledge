@@ -143,6 +143,16 @@ final class AppState {
     var contextAware: Bool {
         didSet { UserDefaults.standard.set(contextAware, forKey: "contextAware") }
     }
+    /// Lean toward the screen to expand the notch (uses the front camera).
+    var leanToExpand: Bool {
+        didSet {
+            UserDefaults.standard.set(leanToExpand, forKey: "leanToExpand")
+            onLeanToExpandChange?(leanToExpand)
+        }
+    }
+    /// Called when lean-to-expand is toggled, so the controller can start/stop
+    /// the camera without AppState importing AVFoundation wiring.
+    var onLeanToExpandChange: ((Bool) -> Void)?
 
     /// Called when a setting that affects panel geometry changes.
     var onLayoutChange: (() -> Void)?
@@ -169,6 +179,7 @@ final class AppState {
     let reminders = ReminderModel()
     let audioOutput = AudioOutputModel()
     let context = ContextModel()
+    let proximity = ProximityModel()
 
     private var didStartModules = false
 
@@ -197,6 +208,7 @@ final class AppState {
         accentColorName = UserDefaults.standard.string(forKey: "accentColorName") ?? "blue"
         panelSize = PanelSize(rawValue: UserDefaults.standard.string(forKey: "panelSize") ?? "") ?? .medium
         contextAware = UserDefaults.standard.object(forKey: "contextAware") as? Bool ?? true
+        leanToExpand = UserDefaults.standard.bool(forKey: "leanToExpand")   // default off
     }
 
     /// Kick off the background pollers for enabled modules.
