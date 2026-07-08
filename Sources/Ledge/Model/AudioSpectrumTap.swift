@@ -14,23 +14,31 @@ import AudioToolbox
 final class SpectrumTap: @unchecked Sendable {
     private let analyzer: SpectrumAnalyzer
     private let onBands: @Sendable ([Float]) -> Void
+    private let debug: Bool
 
     private var tapID: AudioObjectID = 0
     private var aggregateID: AudioObjectID = 0
     private var ioProcID: AudioDeviceIOProcID?
     private var frameCounter = 0
 
-    init(analyzer: SpectrumAnalyzer, onBands: @escaping @Sendable ([Float]) -> Void) {
+    init(debug: Bool = false, analyzer: SpectrumAnalyzer, onBands: @escaping @Sendable ([Float]) -> Void) {
+        self.debug = debug
         self.analyzer = analyzer
         self.onBands = onBands
     }
 
+    private func log(_ msg: String) { if debug { NSLog("Ledge spectrum: \(msg)") } }
+
     func start() -> Bool {
-        // 1. A system-wide, muted stereo-mixdown tap.
-        let desc = CATapDescription(stereoMixdownOfProcesses: [])
+        // 1. A system-wide stereo tap. "GlobalTapButExcludeProcesses: []" taps
+        //    all output (excluding nothing) — an empty *mixdownOfProcesses* list
+        //    would tap nothing and yield silence. Unmuted so audio still plays.
+        let desc = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         desc.isPrivate = true
         desc.muteBehavior = .unmuted
-        guard AudioHardwareCreateProcessTap(desc, &tapID) == noErr, tapID != 0 else {
+        let tapStatus = AudioHardwareCreateProcessTap(desc, &tapID)
+        guard tapStatus == noErr, tapID != 0 else {
+            log("AudioHardwareCreateProcessTap failed (\(tapStatus))")
             return false
         }
 
@@ -46,8 +54,9 @@ final class SpectrumTap: @unchecked Sendable {
                 [kAudioSubTapUIDKey: tapUID, kAudioSubTapDriftCompensationKey: false]
             ],
         ]
-        guard AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID) == noErr,
-              aggregateID != 0 else {
+        let aggStatus = AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID)
+        guard aggStatus == noErr, aggregateID != 0 else {
+            log("AudioHardwareCreateAggregateDevice failed (\(aggStatus))")
             teardown()
             return false
         }
@@ -75,17 +84,21 @@ final class SpectrumTap: @unchecked Sendable {
         }
 
         var procID: AudioDeviceIOProcID?
-        guard AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, nil, block) == noErr,
-              let procID else {
+        let procStatus = AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, nil, block)
+        guard procStatus == noErr, let procID else {
+            log("AudioDeviceCreateIOProcIDWithBlock failed (\(procStatus))")
             teardown()
             return false
         }
         ioProcID = procID
 
-        guard AudioDeviceStart(aggregateID, procID) == noErr else {
+        let startStatus = AudioDeviceStart(aggregateID, procID)
+        guard startStatus == noErr else {
+            log("AudioDeviceStart failed (\(startStatus))")
             teardown()
             return false
         }
+        log("tap + aggregate running")
         return true
     }
 

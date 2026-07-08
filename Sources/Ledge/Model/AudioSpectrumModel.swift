@@ -24,17 +24,26 @@ final class AudioSpectrumModel {
         self.levels = Array(repeating: 0, count: bandCount)
     }
 
+    private var debug: Bool { ProcessInfo.processInfo.environment["LEDGE_DEBUG_SPECTRUM"] == "1" }
+
     func start() {
         guard tap == nil else { return }
-        guard #available(macOS 14.4, *) else { return }
+        guard #available(macOS 14.4, *) else {
+            if debug { NSLog("Ledge spectrum: needs macOS 14.4+") }
+            return
+        }
         let analyzer = SpectrumAnalyzer(bandCount: bandCount)
-        let tap = SpectrumTap(analyzer: analyzer) { [weak self] bands in
+        let dbg = debug
+        let tap = SpectrumTap(debug: dbg, analyzer: analyzer) { [weak self] bands in
             // Delivered off the realtime thread already (analyzer hops for us).
             Task { @MainActor in self?.apply(bands) }
         }
         if tap.start() {
             self.tap = tap
             active = true
+            if dbg { NSLog("Ledge spectrum: tap started OK") }
+        } else if dbg {
+            NSLog("Ledge spectrum: tap failed to start")
         }
     }
 
@@ -45,11 +54,18 @@ final class AudioSpectrumModel {
         levels = Array(repeating: 0, count: bandCount)
     }
 
+    private var applyCount = 0
     private func apply(_ bands: [Float]) {
         guard bands.count == levels.count else { return }
         // Exponential smoothing so the bars glide rather than jitter.
         for i in bands.indices {
             levels[i] = levels[i] * 0.6 + bands[i] * 0.4
+        }
+        if debug {
+            applyCount += 1
+            if applyCount % 20 == 0 {
+                NSLog("Ledge spectrum: levels=%@", levels.map { String(format: "%.2f", $0) }.joined(separator: ","))
+            }
         }
     }
 }

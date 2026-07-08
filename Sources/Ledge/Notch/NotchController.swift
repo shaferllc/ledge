@@ -107,6 +107,12 @@ final class NotchController {
             }
         }
 
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_SPECTRUM"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                AppState.shared.audioSpectrum.start()
+            }
+        }
+
         if ProcessInfo.processInfo.environment["LEDGE_DEBUG_CLAUDE"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.toggleClaude()
