@@ -2,16 +2,24 @@ import Foundation
 import CoreLocation
 import Observation
 
-/// Current conditions + today's high/low via Open-Meteo (no API key), located
-/// with CoreLocation and reverse-geocoded for a place name.
+/// Current conditions, hourly and multi-day forecast via Open-Meteo (no API
+/// key), located with CoreLocation and reverse-geocoded for a place name.
 @Observable
 @MainActor
 final class WeatherModel: NSObject, CLLocationManagerDelegate {
+    struct Hour: Identifiable { let id = UUID(); let date: Date; let code: Int; let temp: Int }
+    struct Day: Identifiable { let id = UUID(); let date: Date; let code: Int; let high: Int; let low: Int; let precip: Int }
+
     var place = ""
     var temperature: Int?
     var high: Int?
     var low: Int?
     var code: Int = 0
+    var feelsLike: Int?
+    var humidity: Int?
+    var wind: Int?
+    var hourly: [Hour] = []
+    var daily: [Day] = []
     var useFahrenheit = true
     var available = false
     var denied = false
@@ -64,18 +72,61 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
 
     private func fetch(_ loc: CLLocation) async {
         let unit = useFahrenheit ? "fahrenheit" : "celsius"
-        let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(loc.coordinate.latitude)&longitude=\(loc.coordinate.longitude)&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&temperature_unit=\(unit)&timezone=auto")!
+        let windUnit = useFahrenheit ? "mph" : "kmh"
+        let url = URL(string: "https://api.open-meteo.com/v1/forecast?"
+            + "latitude=\(loc.coordinate.latitude)&longitude=\(loc.coordinate.longitude)"
+            + "&current=temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m"
+            + "&hourly=temperature_2m,weather_code"
+            + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+            + "&temperature_unit=\(unit)&wind_speed_unit=\(windUnit)&timezone=auto&forecast_days=6")!
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let decoded = try JSONDecoder().decode(OpenMeteo.self, from: data)
             temperature = Int(decoded.current.temperature_2m.rounded())
             code = decoded.current.weather_code
+            feelsLike = decoded.current.apparent_temperature.map { Int($0.rounded()) }
+            humidity = decoded.current.relative_humidity_2m
+            wind = decoded.current.wind_speed_10m.map { Int($0.rounded()) }
             high = decoded.daily.temperature_2m_max.first.map { Int($0.rounded()) }
             low = decoded.daily.temperature_2m_min.first.map { Int($0.rounded()) }
+            hourly = Self.parseHourly(decoded.hourly)
+            daily = Self.parseDaily(decoded.daily)
             available = true
         } catch {
             available = temperature != nil
         }
+    }
+
+    private static func parseHourly(_ h: OpenMeteo.Hourly?) -> [Hour] {
+        guard let h else { return [] }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        fmt.timeZone = .current
+        let cutoff = Date().addingTimeInterval(-1800)   // include the current hour
+        var result: [Hour] = []
+        for i in h.time.indices where i < h.temperature_2m.count && i < h.weather_code.count {
+            guard let date = fmt.date(from: h.time[i]), date >= cutoff else { continue }
+            result.append(Hour(date: date, code: h.weather_code[i], temp: Int(h.temperature_2m[i].rounded())))
+            if result.count >= 8 { break }
+        }
+        return result
+    }
+
+    private static func parseDaily(_ d: OpenMeteo.Daily) -> [Day] {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = .current
+        var result: [Day] = []
+        for i in d.temperature_2m_max.indices where i < d.temperature_2m_min.count {
+            let date = (d.time?.indices.contains(i) == true ? fmt.date(from: d.time![i]) : nil) ?? Date()
+            result.append(Day(date: date,
+                              code: d.weather_code?.indices.contains(i) == true ? d.weather_code![i] : 0,
+                              high: Int(d.temperature_2m_max[i].rounded()),
+                              low: Int(d.temperature_2m_min[i].rounded()),
+                              precip: d.precipitation_probability_max?.indices.contains(i) == true
+                                      ? (d.precipitation_probability_max![i] ?? 0) : 0))
+        }
+        return result
     }
 
     private func reverseGeocode(_ loc: CLLocation) async {
@@ -87,7 +138,10 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
 
     // MARK: Weather-code mapping (WMO)
 
-    var symbol: String {
+    var symbol: String { Self.symbol(for: code) }
+    var summary: String { Self.summary(for: code) }
+
+    static func symbol(for code: Int) -> String {
         switch code {
         case 0: "sun.max.fill"
         case 1, 2: "cloud.sun.fill"
@@ -103,7 +157,7 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    var summary: String {
+    static func summary(for code: Int) -> String {
         switch code {
         case 0: "Clear"
         case 1, 2: "Partly cloudy"
@@ -123,9 +177,27 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
     }
 
     private struct OpenMeteo: Decodable {
-        struct Current: Decodable { let temperature_2m: Double; let weather_code: Int }
-        struct Daily: Decodable { let temperature_2m_max: [Double]; let temperature_2m_min: [Double] }
+        struct Current: Decodable {
+            let temperature_2m: Double
+            let weather_code: Int
+            let apparent_temperature: Double?
+            let relative_humidity_2m: Int?
+            let wind_speed_10m: Double?
+        }
+        struct Hourly: Decodable {
+            let time: [String]
+            let temperature_2m: [Double]
+            let weather_code: [Int]
+        }
+        struct Daily: Decodable {
+            let time: [String]?
+            let weather_code: [Int]?
+            let temperature_2m_max: [Double]
+            let temperature_2m_min: [Double]
+            let precipitation_probability_max: [Int?]?
+        }
         let current: Current
+        let hourly: Hourly?
         let daily: Daily
     }
 }

@@ -17,11 +17,17 @@ enum SelfTest {
         app.nowPlaying.duration = 214
         app.shelf.add([URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")])
         app.system.start()
+        let base = Date()
         app.weather.available = true
         app.weather.temperature = 72
         app.weather.high = 78; app.weather.low = 61
         app.weather.code = 2
         app.weather.place = "Portland"
+        app.weather.feelsLike = 74; app.weather.humidity = 58; app.weather.wind = 6
+        app.weather.hourly = (0..<7).map { i in
+            WeatherModel.Hour(date: base.addingTimeInterval(Double(i) * 3600),
+                              code: [2, 2, 3, 61, 80, 3, 1][i], temp: [72, 74, 75, 73, 70, 68, 66][i])
+        }
         app.clipboard.history = [
             .init(text: "https://macnotch.io"),
             .init(text: "The quick brown fox jumps over the lazy dog"),
@@ -38,7 +44,6 @@ enum SelfTest {
         app.countdown.setDuration(600)
         app.caffeine.activate()
         app.teleprompter.script = "Welcome to Ledge.\nYour notch is now a teleprompter — read your script while looking right at the camera, and nudge the speed on the fly."
-        let base = Date()
         app.calendar.accessGranted = true
         app.calendar.eventDays = [3, 7, 8, 12, 18, 22, 25]
         app.calendar.events = [
