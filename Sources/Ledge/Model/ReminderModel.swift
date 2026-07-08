@@ -49,16 +49,24 @@ final class ReminderModel {
         guard accessGranted else { return }
         let predicate = store.predicateForIncompleteReminders(
             withDueDateStarting: nil, ending: nil, calendars: nil)
+        // The completion runs on a background queue; map there with a nonisolated
+        // helper (so no MainActor-isolated closure runs off-main), then hop the
+        // Sendable result to the main actor.
         store.fetchReminders(matching: predicate) { reminders in
-            let items: [Item] = (reminders ?? []).map { r in
-                Item(id: r.calendarItemIdentifier,
-                     title: r.title ?? "Reminder",
-                     due: r.dueDateComponents.flatMap { Calendar.current.date(from: $0) },
-                     priority: r.priority)
-            }
-            .sorted(by: Self.order)
-            Task { @MainActor in self.items = Array(items.prefix(8)) }
+            let items = Self.makeItems(reminders)
+            Task { @MainActor in self.items = items }
         }
+    }
+
+    nonisolated private static func makeItems(_ reminders: [EKReminder]?) -> [Item] {
+        let items = (reminders ?? []).map { r in
+            Item(id: r.calendarItemIdentifier,
+                 title: r.title ?? "Reminder",
+                 due: r.dueDateComponents.flatMap { Calendar.current.date(from: $0) },
+                 priority: r.priority)
+        }
+        .sorted(by: order)
+        return Array(items.prefix(8))
     }
 
     /// Overdue first, then by due date (undated last), then higher priority.
