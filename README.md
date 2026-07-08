@@ -1,5 +1,7 @@
 # Ledge
 
+[![CI](https://github.com/shaferllc/ledge/actions/workflows/ci.yml/badge.svg)](https://github.com/shaferllc/ledge/actions/workflows/ci.yml)
+
 A native macOS clone of [MacNotch](https://macnotch.io) — turns the MacBook
 notch into an interactive, modular dashboard. Hover the notch and it expands
 into a hub of live modules; move away and it melts back into the notch.
