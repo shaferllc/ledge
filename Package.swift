@@ -9,5 +9,10 @@ let package = Package(
             name: "Ledge",
             path: "Sources/Ledge"
         ),
+        .testTarget(
+            name: "LedgeTests",
+            dependencies: ["Ledge"],
+            path: "Tests/LedgeTests"
+        ),
     ]
 )

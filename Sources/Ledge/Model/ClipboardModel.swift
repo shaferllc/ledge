@@ -7,7 +7,7 @@ import Observation
 @Observable
 @MainActor
 final class ClipboardModel {
-    enum Kind { case text, url, color, image }
+    enum Kind: Equatable { case text, url, color, image }
 
     struct Entry: Identifiable {
         let id = UUID()
@@ -70,8 +70,7 @@ final class ClipboardModel {
 
         if let str = pb.string(forType: .string),
            !str.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let kind: Kind = isURL(str) ? .url : (Color(hex: str) != nil ? .color : .text)
-            insert(Entry(kind: kind, text: str, image: nil, date: Date()))
+            insert(Entry(kind: Self.classify(str), text: str, image: nil, date: Date()))
         } else if let image = NSImage(pasteboard: pb) {
             insert(Entry(kind: .image, text: "Image", image: image, date: Date()))
         }
@@ -117,7 +116,14 @@ final class ClipboardModel {
 
     func clear() { history.removeAll { !$0.pinned } }
 
-    private func isURL(_ s: String) -> Bool {
+    /// Classifies copied text into a kind (URL / color / plain text).
+    nonisolated static func classify(_ text: String) -> Kind {
+        if isURL(text) { return .url }
+        if Color(hex: text) != nil { return .color }
+        return .text
+    }
+
+    nonisolated static func isURL(_ s: String) -> Bool {
         guard let u = URL(string: s.trimmingCharacters(in: .whitespaces)),
               let scheme = u.scheme?.lowercased() else { return false }
         return (scheme == "http" || scheme == "https") && u.host != nil

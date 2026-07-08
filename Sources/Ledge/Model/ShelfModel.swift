@@ -40,8 +40,10 @@ final class ShelfModel {
     }
 
     func add(_ urls: [URL]) {
-        let existing = Set(items.map(\.url.standardizedFileURL))
-        for url in urls where !existing.contains(url.standardizedFileURL) {
+        var seen = Set(items.map(\.url.standardizedFileURL))
+        for url in urls {
+            let std = url.standardizedFileURL
+            guard seen.insert(std).inserted else { continue }
             items.append(Item(url: url))
         }
     }

@@ -70,6 +70,17 @@ it can draw into the notch region.
 - `Views/` — `NotchView` root → `CollapsedView` / `ExpandedView`, and the
   per-module cards under `Views/Modules/`.
 
+## Tests
+
+```sh
+swift test
+```
+
+Unit tests (`Tests/LedgeTests/`) cover the pure model logic — clipboard
+classification and hex parsing, weather-code mapping, module metadata, timer
+formatting, shelf de-duplication, and now-playing progress. They import the
+executable target with `@testable import Ledge`.
+
 ## Self-test
 
 ```sh

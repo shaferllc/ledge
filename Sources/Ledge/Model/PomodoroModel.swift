@@ -6,7 +6,7 @@ import Observation
 @Observable
 @MainActor
 final class PomodoroModel {
-    enum Phase { case work, rest
+    enum Phase: Equatable { case work, rest
         var title: String { self == .work ? "Focus" : "Break" }
         var tint: Color { self == .work ? .orange : .green }
     }
