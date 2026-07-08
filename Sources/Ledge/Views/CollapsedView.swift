@@ -31,17 +31,30 @@ struct CollapsedView: View {
     // MARK: Live activity (beside the notch)
 
     private var liveActivity: some View {
-        HStack(spacing: 0) {
-            Artwork(url: app.nowPlaying.artworkURL)
-                .frame(maxWidth: .infinity)
-            Color.clear.frame(width: notchWidth)
-            EqualizerBars()
-                .frame(width: 16, height: 13)
-                .foregroundStyle(app.accentColor)
-                .frame(maxWidth: .infinity)
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            HStack(spacing: 0) {
+                // Album art hugs the left of the notch.
+                Artwork(url: app.nowPlaying.artworkURL, size: 24)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                Color.clear.frame(width: notchWidth)
+                // A progress ring with the equalizer inside, hugging the right.
+                ZStack {
+                    Circle().stroke(Color.white.opacity(0.15), lineWidth: 2)
+                    Circle()
+                        .trim(from: 0, to: app.nowPlaying.progress)
+                        .stroke(app.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.5), value: app.nowPlaying.progress)
+                    EqualizerBars()
+                        .frame(width: 11, height: 9)
+                        .foregroundStyle(app.accentColor)
+                }
+                .frame(width: 24, height: 24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Volume HUD (below the notch)
@@ -102,16 +115,18 @@ struct CollapsedView: View {
 
 private struct Artwork: View {
     let url: URL?
+    var size: CGFloat = 22
     var body: some View {
         RoundedRectangle(cornerRadius: 5, style: .continuous)
             .fill(Color.white.opacity(0.1))
-            .frame(width: 22, height: 22)
+            .frame(width: size, height: size)
             .overlay {
                 if let url {
                     AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { icon }
                 } else { icon }
             }
             .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
     }
     private var icon: some View {
         Image(systemName: "music.note").font(.system(size: 10)).foregroundStyle(.white.opacity(0.5))
