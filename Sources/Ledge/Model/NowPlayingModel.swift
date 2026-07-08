@@ -52,10 +52,27 @@ final class NowPlayingModel {
     func startPolling() {
         guard timer == nil else { return }
         refresh()
-        let t = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+        scheduleNext()
+    }
+
+    /// Reschedules the next poll with an adaptive interval. Refreshing spawns an
+    /// `osascript` subprocess whenever a player app is running, so we only pay
+    /// the 2.5s cadence when it matters — the dashboard is open, or a live-
+    /// activity pill is showing — and back off to 10s while idle. That still
+    /// surfaces newly-started playback within ~10s without a subprocess every
+    /// 2.5s all day.
+    private func scheduleNext() {
+        timer?.invalidate()
+        let controller = NotchController.shared
+        let needsDetail = controller.isExpanded || controller.liveActivityActive
+        let interval: TimeInterval = needsDetail ? 2.5 : 10
+        let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.refresh()
+                self?.scheduleNext()
+            }
         }
-        t.tolerance = 0.5
+        t.tolerance = interval * 0.2
         timer = t
     }
 

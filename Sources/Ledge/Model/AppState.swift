@@ -196,7 +196,7 @@ final class AppState {
     func startModules() {
         guard !didStartModules else { return }
         didStartModules = true
-        nowPlaying.startPolling()
+        if enabledModules.contains(.nowPlaying) { nowPlaying.startPolling() }
         system.start()
         // Skip permission-prompting modules when snapshotting Settings.
         let skipPrompts = ProcessInfo.processInfo.environment["LEDGE_DEBUG_SETTINGS"] == "1"
@@ -213,6 +213,7 @@ final class AppState {
     func startIfEnabled(_ module: Module) {
         guard enabledModules.contains(module) else { return }
         switch module {
+        case .nowPlaying: nowPlaying.startPolling()
         case .calendar:  calendar.start()
         case .weather:   weather.start()
         case .clipboard: clipboard.start()

@@ -43,41 +43,33 @@ struct NotchGeometry {
 
     private var topY: CGFloat { screen.frame.maxY }
 
-    /// Collapsed frame: sits exactly over the notch (or a small pill on flat tops).
-    var collapsedFrame: NSRect {
-        let w = notchWidth
-        let h = notchHeight
-        return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
+    /// The single place a shape size is turned into a screen rect: horizontally
+    /// centered on the notch, top-anchored under the screen's top edge. Deriving
+    /// every frame from its `*Size` here keeps the drawn shape and its hover /
+    /// hit-frame from drifting apart when a size is tweaked.
+    private func topAnchoredFrame(_ size: CGSize) -> NSRect {
+        NSRect(x: screen.frame.midX - size.width / 2, y: topY - size.height,
+               width: size.width, height: size.height)
     }
+
+    /// Collapsed frame: sits exactly over the notch (or a small pill on flat tops).
+    var collapsedFrame: NSRect { topAnchoredFrame(collapsedSize) }
 
     /// Wider collapsed frame used when there's live activity to show beside the
     /// notch (now-playing artwork on the left, an indicator on the right).
-    var liveActivityFrame: NSRect {
-        let w = notchWidth + 168
-        let h = notchHeight
-        return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
-    }
+    var liveActivityFrame: NSRect { topAnchoredFrame(liveActivitySize) }
 
     /// Drag destination over the notch: as wide as the notch and extending a
     /// little below it, so dragging a file up to the notch reliably hits it.
     var dropCatcherFrame: NSRect {
-        let w = notchWidth + 30
-        let h = notchHeight + 30
-        return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
+        topAnchoredFrame(CGSize(width: notchWidth + 30, height: notchHeight + 30))
     }
 
     /// HUD frame: a small pill hanging just below the notch (volume/mute).
-    var hudFrame: NSRect {
-        let w = max(notchWidth + 40, 220)
-        let h = notchHeight + 34
-        return NSRect(x: screen.frame.midX - w / 2, y: topY - h, width: w, height: h)
-    }
+    var hudFrame: NSRect { topAnchoredFrame(hudSize) }
 
     /// Expanded frame: wide dashboard hanging below the top edge.
-    var expandedFrame: NSRect {
-        NSRect(x: screen.frame.midX - expandedWidth / 2, y: topY - expandedHeight,
-               width: expandedWidth, height: expandedHeight)
-    }
+    var expandedFrame: NSRect { topAnchoredFrame(expandedSize) }
 
     var wingInset: CGFloat { 10 }
 }

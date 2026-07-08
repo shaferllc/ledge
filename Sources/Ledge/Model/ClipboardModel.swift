@@ -42,7 +42,6 @@ final class ClipboardModel {
     var history: [Entry] = []
     private var lastChangeCount = NSPasteboard.general.changeCount
     private var timer: Timer?
-    private var suppressUntilChange = false
     private let maxUnpinned = 8
 
     /// Pinned items first, otherwise most-recent first.
@@ -62,11 +61,11 @@ final class ClipboardModel {
         timer = t
     }
 
-    private func poll() {
+    // Internal (not private) so tests can drive it against the real pasteboard.
+    func poll() {
         let pb = NSPasteboard.general
         guard pb.changeCount != lastChangeCount else { return }
         lastChangeCount = pb.changeCount
-        if suppressUntilChange { suppressUntilChange = false; return }
 
         if let str = pb.string(forType: .string),
            !str.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -99,7 +98,6 @@ final class ClipboardModel {
     }
 
     func copy(_ entry: Entry) {
-        suppressUntilChange = true
         let pb = NSPasteboard.general
         pb.clearContents()
         if entry.kind == .image, let image = entry.image {
@@ -107,6 +105,8 @@ final class ClipboardModel {
         } else {
             pb.setString(entry.text, forType: .string)
         }
+        // Record our own write so the next poll ignores it; the following real
+        // copy still has a distinct changeCount and enters history normally.
         lastChangeCount = pb.changeCount
         if let idx = history.firstIndex(where: { $0.id == entry.id }) {
             let moved = history.remove(at: idx)

@@ -95,19 +95,29 @@ final class NotchController {
         // Include drag events: while dragging a file the button is held, so the
         // system emits .leftMouseDragged (not .mouseMoved) — without this the
         // notch never reacts to a drag heading toward it.
+        //
+        // A single global monitor suffices: it sees every move on every screen
+        // and we read the cursor from NSEvent.mouseLocation, so a local monitor
+        // (for events targeting our own window) would only duplicate the work.
+        // Monitor callbacks are delivered on the main thread, so we hop onto the
+        // main actor synchronously instead of allocating a Task per event —
+        // .mouseMoved fires continuously, and a per-event Task is pure overhead.
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged]
         let global = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] _ in
-            Task { @MainActor in self?.handleMouse(at: NSEvent.mouseLocation) }
+            MainActor.assumeIsolated { self?.handleMouse(at: NSEvent.mouseLocation) }
         }
-        let local = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
-            Task { @MainActor in self?.handleMouse(at: NSEvent.mouseLocation) }
-            return event
-        }
-        mouseMonitors = [global, local].compactMap { $0 }
+        mouseMonitors = [global].compactMap { $0 }
     }
 
     private func handleMouse(at point: NSPoint) {
         guard let geo = geometry, isVisible else { return }
+        // Cheap early-out: every interactive zone is top-anchored within the
+        // expanded frame, so a cursor well below it can't hit anything. This
+        // rejects the vast majority of moves before any rect math.
+        guard point.y >= geo.expandedFrame.minY - 12 else {
+            if isExpanded { requestCollapse() }
+            return
+        }
         if isExpanded {
             if !geo.expandedFrame.insetBy(dx: -6, dy: -6).contains(point) {
                 requestCollapse()

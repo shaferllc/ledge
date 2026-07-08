@@ -56,4 +56,33 @@ final class ClipboardTests: XCTestCase {
         m.copy(b)
         XCTAssertEqual(m.history.first?.text, "b")
     }
+
+    // Regression: copying an item back from history recorded its own pasteboard
+    // write so poll() ignores it — but must NOT swallow the *next* genuine copy.
+    func testCopyDoesNotSwallowNextRealCopy() {
+        let pb = NSPasteboard.general
+        let m = ClipboardModel()
+        m.history = [.init(kind: .text, text: "b", image: nil, date: Date())]
+
+        m.copy(m.history[0])            // writes "b", records that changeCount
+
+        // A genuinely new copy lands on the pasteboard afterwards.
+        pb.clearContents()
+        pb.setString("fresh copy", forType: .string)
+        m.poll()
+
+        XCTAssertEqual(m.history.first?.text, "fresh copy",
+                       "a real copy right after re-copying from history must enter history")
+    }
+
+    // The flip side of the invariant: our own write is ignored, not duplicated.
+    func testCopyDoesNotReIngestOwnWrite() {
+        let m = ClipboardModel()
+        m.history = [.init(kind: .text, text: "x", image: nil, date: Date())]
+        m.copy(m.history[0])           // records our own changeCount
+        let countBefore = m.history.count
+        m.poll()                       // pasteboard unchanged since our write
+        XCTAssertEqual(m.history.count, countBefore,
+                       "polling right after our own copy must not duplicate it")
+    }
 }

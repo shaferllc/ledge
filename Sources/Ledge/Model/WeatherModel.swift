@@ -35,9 +35,12 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
     }
 
     func start() {
+        // Idempotent, like the other pollers: a re-enable shouldn't re-request
+        // authorization or restart location updates — that just churns the
+        // location subsystem. The 15-min timer already refreshes via requestLocation().
+        guard timer == nil else { return }
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
-        timer?.invalidate()
         let t = Timer.scheduledTimer(withTimeInterval: 900, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.manager.requestLocation() }
         }
