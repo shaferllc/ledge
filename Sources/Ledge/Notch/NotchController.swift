@@ -47,10 +47,13 @@ final class NotchController {
         self.geometry = geo
 
         let panel = NotchPanel(contentRect: geo.expandedFrame)
+        let container = NotchContainerView()
+        container.shapeSize = { [weak self] in self?.currentShapeSize ?? .zero }
         let host = NSHostingView(rootView: NotchView().environment(AppState.shared))
-        host.frame = panel.contentLayoutRect
+        panel.contentView = container
+        host.frame = container.bounds
         host.autoresizingMask = [.width, .height]
-        panel.contentView = host
+        container.addSubview(host)
         panel.setFrame(geo.expandedFrame, display: true)
         panel.orderFrontRegardless()
         self.panel = panel
@@ -109,9 +112,20 @@ final class NotchController {
     /// Idle window passes clicks through (so it never blocks the menu bar).
     /// Exceptions: while expanded the dashboard must be interactive, and in
     /// click-to-expand mode the idle notch must receive the click.
+    /// The panel now accepts events everywhere; NotchContainerView.hitTest
+    /// decides per-point whether to handle or pass through (based on the current
+    /// shape), so clicks/drags on the notch work while the menu bar stays free.
     func refreshMouseIgnore() {
-        let interactive = isExpanded || AppState.shared.expandOnClick
-        panel?.ignoresMouseEvents = !interactive
+        panel?.ignoresMouseEvents = false
+    }
+
+    /// Size of the visible notch shape for the current state (used by hit-testing).
+    var currentShapeSize: CGSize {
+        guard let geo = geometry else { return .zero }
+        if isExpanded { return geo.expandedSize }
+        if hud != nil { return geo.hudSize }
+        if liveActivityActive { return geo.liveActivitySize }
+        return geo.collapsedSize
     }
 
     private func resolveGeometry() -> NotchGeometry {
