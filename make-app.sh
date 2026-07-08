@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 #   LEDGE_BUILD    CFBundleVersion                    (default 1)
 APP_DEST="${APP_DEST:-$HOME/Desktop}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
-LEDGE_VERSION="${LEDGE_VERSION:-0.3}"
+LEDGE_VERSION="${LEDGE_VERSION:-0.4}"
 LEDGE_BUILD="${LEDGE_BUILD:-1}"
 
 INSTALL=0

@@ -26,7 +26,7 @@ cd "$(dirname "$0")"
 #   AC_KEYCHAIN_PROFILE                          alternative: a stored notarytool profile
 
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
-LEDGE_VERSION="${LEDGE_VERSION:-0.3}"
+LEDGE_VERSION="${LEDGE_VERSION:-0.4}"
 LEDGE_BUILD="${LEDGE_BUILD:-1}"
 NOTARIZE="${NOTARIZE:-0}"
 
