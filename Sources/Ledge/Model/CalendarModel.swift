@@ -1,8 +1,9 @@
 import Foundation
+import AppKit
 import EventKit
 import Observation
 
-/// Provides today's upcoming calendar events, if the user grants access.
+/// Provides today's events and this month's event-days, if the user grants access.
 @Observable
 @MainActor
 final class CalendarModel {
@@ -10,12 +11,19 @@ final class CalendarModel {
         let id: String
         let title: String
         let start: Date
+        let end: Date
         let color: CGColor?
         let isAllDay: Bool
         let meetingURL: URL?
+        let location: String?
+
+        func isOngoing(_ now: Date) -> Bool { start <= now && end > now }
+        func isPast(_ now: Date) -> Bool { end <= now }
     }
 
     var events: [Event] = []
+    /// Day-of-month numbers in the current month that have at least one event.
+    var eventDays: Set<Int> = []
     var accessGranted = false
     var didRequest = false
 
@@ -28,6 +36,11 @@ final class CalendarModel {
             Task { @MainActor in self?.reload() }
         }
         timer = t
+    }
+
+    /// The next event that hasn't ended yet (ongoing or upcoming).
+    func nextEvent(_ now: Date = Date()) -> Event? {
+        events.filter { !$0.isAllDay && $0.end > now }.min { $0.start < $1.start }
     }
 
     private func requestAccess() {
@@ -44,24 +57,46 @@ final class CalendarModel {
     private func reload() {
         guard accessGranted else { return }
         let cal = Calendar.current
-        let start = Date()
-        guard let end = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: start)) else { return }
-        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
-        let found = store.events(matching: predicate)
+        let now = Date()
+        let dayStart = cal.startOfDay(for: now)
+        guard let dayEnd = cal.date(byAdding: .day, value: 1, to: dayStart) else { return }
+
+        // Today's events (full day, so past ones can be shown dimmed).
+        let dayPredicate = store.predicateForEvents(withStart: dayStart, end: dayEnd, calendars: nil)
+        events = store.events(matching: dayPredicate)
             .sorted { $0.startDate < $1.startDate }
-            .prefix(3)
+            .prefix(8)
             .map { ek in
                 Event(id: ek.eventIdentifier ?? UUID().uuidString,
                       title: ek.title ?? "Event",
                       start: ek.startDate,
+                      end: ek.endDate,
                       color: ek.calendar?.cgColor,
                       isAllDay: ek.isAllDay,
-                      meetingURL: Self.meetingURL(for: ek))
+                      meetingURL: Self.meetingURL(for: ek),
+                      location: ek.location)
             }
-        events = Array(found)
+
+        // Which days of the current month have events (for the month grid dots).
+        if let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)),
+           let monthEnd = cal.date(byAdding: DateComponents(month: 1), to: monthStart) {
+            let monthPredicate = store.predicateForEvents(withStart: monthStart, end: monthEnd, calendars: nil)
+            var days = Set<Int>()
+            for ek in store.events(matching: monthPredicate) where !ek.isAllDay {
+                days.insert(cal.component(.day, from: ek.startDate))
+            }
+            eventDays = days
+        }
     }
 
-    /// Finds a video-call link in the event's url / location / notes.
+    // MARK: Actions
+
+    func openCalendar() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Calendar.app"))
+    }
+
+    // MARK: Meeting-link detection
+
     private static func meetingURL(for ek: EKEvent) -> URL? {
         if let u = ek.url, Self.isMeeting(u) { return u }
         let haystack = [ek.location, ek.notes].compactMap { $0 }.joined(separator: " ")
@@ -69,9 +104,7 @@ final class CalendarModel {
               let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         else { return nil }
         let matches = detector.matches(in: haystack, range: NSRange(haystack.startIndex..., in: haystack))
-        for m in matches {
-            if let u = m.url, Self.isMeeting(u) { return u }
-        }
+        for m in matches where m.url != nil && Self.isMeeting(m.url!) { return m.url }
         return nil
     }
 

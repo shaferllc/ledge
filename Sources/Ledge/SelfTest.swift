@@ -38,12 +38,27 @@ enum SelfTest {
         app.countdown.setDuration(600)
         app.caffeine.activate()
         app.teleprompter.script = "Welcome to Ledge.\nYour notch is now a teleprompter — read your script while looking right at the camera, and nudge the speed on the fly."
+        let base = Date()
+        app.calendar.accessGranted = true
+        app.calendar.eventDays = [3, 7, 8, 12, 18, 22, 25]
+        app.calendar.events = [
+            .init(id: "1", title: "Team standup", start: base.addingTimeInterval(1500),
+                  end: base.addingTimeInterval(3300), color: NSColor.systemBlue.cgColor,
+                  isAllDay: false, meetingURL: URL(string: "https://zoom.us/j/1"), location: nil),
+            .init(id: "2", title: "Design review", start: base.addingTimeInterval(7200),
+                  end: base.addingTimeInterval(9000), color: NSColor.systemPurple.cgColor,
+                  isAllDay: false, meetingURL: nil, location: nil),
+            .init(id: "3", title: "1:1 with Sam", start: base.addingTimeInterval(14400),
+                  end: base.addingTimeInterval(16200), color: NSColor.systemGreen.cgColor,
+                  isAllDay: false, meetingURL: nil, location: nil),
+        ]
 
         // Render the module row directly (ImageRenderer doesn't snapshot the
         // ScrollView ExpandedView uses at runtime, so we lay the cards out flat).
         let content = ZStack {
             NotchShape(bottomRadius: 22).fill(.black)
             HStack(spacing: 10) {
+                CalendarModule()
                 NowPlayingModule()
                 WeatherModule()
                 SystemModule()
