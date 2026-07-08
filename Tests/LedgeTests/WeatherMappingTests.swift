@@ -18,4 +18,14 @@ final class WeatherMappingTests: XCTestCase {
         XCTAssertEqual(WeatherModel.summary(for: 71), "Snow")
         XCTAssertEqual(WeatherModel.summary(for: 999), "—")           // default
     }
+
+    func testPrecipitationMapping() {
+        XCTAssertEqual(WeatherModel.precipitation(for: 0), .none)   // clear
+        XCTAssertEqual(WeatherModel.precipitation(for: 3), .none)   // overcast
+        XCTAssertEqual(WeatherModel.precipitation(for: 61), .rain)  // rain
+        XCTAssertEqual(WeatherModel.precipitation(for: 82), .rain)  // heavy showers
+        XCTAssertEqual(WeatherModel.precipitation(for: 95), .rain)  // thunderstorm
+        XCTAssertEqual(WeatherModel.precipitation(for: 71), .snow)  // snow
+        XCTAssertEqual(WeatherModel.precipitation(for: 86), .snow)  // snow showers
+    }
 }

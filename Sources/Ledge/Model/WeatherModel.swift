@@ -144,6 +144,20 @@ final class WeatherModel: NSObject, CLLocationManagerDelegate {
     var symbol: String { Self.symbol(for: code) }
     var summary: String { Self.summary(for: code) }
 
+    enum Precip { case none, rain, snow }
+
+    /// Current precipitation (from the WMO weather code), for the notch particle
+    /// effect. Thunderstorms count as rain.
+    var precipitation: Precip { Self.precipitation(for: code) }
+
+    static func precipitation(for code: Int) -> Precip {
+        switch code {
+        case 51...67, 80...82, 95...99: .rain
+        case 71...77, 85, 86:           .snow
+        default:                        .none
+        }
+    }
+
     static func symbol(for code: Int) -> String {
         switch code {
         case 0: "sun.max.fill"

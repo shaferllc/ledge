@@ -31,6 +31,14 @@ struct NotchView: View {
                     .clipShape(NotchShape(bottomRadius: radius))
             }
             .frame(width: size.width, height: size.height)
+            .overlay(alignment: .top) {
+                if !expanded, weatherPrecip != .none {
+                    WeatherParticles(kind: weatherPrecip)
+                        .frame(width: size.width + 40, height: 74)
+                        .offset(y: size.height - 4)
+                        .transition(.opacity)
+                }
+            }
 
             Spacer(minLength: 0)
         }
@@ -70,6 +78,16 @@ struct NotchView: View {
         if controller.hud != nil { return geo.hudSize }
         if controller.collapsedWide { return geo.liveActivitySize }
         return geo.collapsedSize
+    }
+
+    /// Precipitation to spill from the notch — only while the weather module is
+    /// on and there's no HUD/activity competing for the collapsed space.
+    private var weatherPrecip: WeatherModel.Precip {
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_WEATHER"] == "rain" { return .rain }
+        if ProcessInfo.processInfo.environment["LEDGE_DEBUG_WEATHER"] == "snow" { return .snow }
+        guard app.enabledModules.contains(.weather),
+              controller.hud == nil, !controller.collapsedWide else { return .none }
+        return app.weather.precipitation
     }
 
     private var notchInset: CGFloat {
