@@ -1,55 +1,41 @@
 #!/bin/bash
+# Usage:
+#   ./make-app.sh          build for this Mac, install to /Applications, launch
+#   ./make-app.sh --dist   build a universal dist/Ledge.app plus a .zip and .dmg
+#
+# The version comes from the VERSION file; VERSION=x.y.z in the environment
+# overrides it, which is how the release workflow stamps a build.
 set -euo pipefail
-
 cd "$(dirname "$0")"
 
-# Configurable via env so make-dmg.sh / CI can reuse this to produce a
-# Developer-ID-signed bundle in a staging dir, while the plain `./make-app.sh`
-# path keeps building an ad-hoc app on the Desktop.
-#   APP_DEST       directory to place Ledge.app in   (default ~/Desktop)
-#   SIGN_IDENTITY  codesign identity                 (default "-" = ad-hoc)
-#   LEDGE_VERSION  CFBundleShortVersionString         (default 0.3)
-#   LEDGE_BUILD    CFBundleVersion                    (default 1)
-APP_DEST="${APP_DEST:-$HOME/Desktop}"
-SIGN_IDENTITY="${SIGN_IDENTITY:--}"
-LEDGE_VERSION="${LEDGE_VERSION:-0.4}"
-LEDGE_BUILD="${LEDGE_BUILD:-1}"
+DIST=0
+[ "${1:-}" = "--dist" ] && DIST=1
+SHORT_VERSION="${VERSION:-$(tr -d '[:space:]' < VERSION 2>/dev/null || echo 0.1.0)}"
 
-INSTALL=0
-for arg in "$@"; do
-  case "$arg" in
-    --install) INSTALL=1 ;;
-    -h|--help)
-      echo "Usage: $0 [--install]"
-      echo "  --install   Move Ledge.app into /Applications and launch it"
-      echo ""
-      echo "Env: APP_DEST, SIGN_IDENTITY, LEDGE_VERSION, LEDGE_BUILD"
-      exit 0
-      ;;
-  esac
-done
+if [ "$DIST" = "1" ]; then
+  # Anything people download has to run on both architectures — an arm64-only
+  # binary is a broken download for every Intel Mac. The local install path
+  # stays single-arch because it only ever has to run on this machine.
+  echo "› Building universal release binary…"
+  swift build -c release --arch arm64 --arch x86_64
+  BINARY=".build/apple/Products/Release/Ledge"
+else
+  echo "› Building release binary…"
+  swift build -c release
+  BINARY=".build/release/Ledge"
+fi
 
-echo "› Building release binary…"
-swift build -c release
-
-# Generate icon if missing or older than the script.
 if [ ! -f AppIcon.icns ] || [ make-icon.swift -nt AppIcon.icns ]; then
   echo "› Generating AppIcon.icns…"
   swift make-icon.swift
 fi
 
-APP="$APP_DEST/Ledge.app"
-echo "› Assembling $APP"
-mkdir -p "$APP_DEST"
-rm -rf "$APP"
+STAGE="$(mktemp -d)"
+APP="$STAGE/Ledge.app"
+echo "› Assembling in staging: $APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-
-cp .build/release/Ledge    "$APP/Contents/MacOS/Ledge"
-# The `ledge` CLI lives in Resources, not MacOS: on the case-insensitive macOS
-# filesystem "MacOS/ledge" and "MacOS/Ledge" are the same path and would clobber
-# the app binary. The installer symlinks /usr/local/bin/ledge to it.
-cp .build/release/LedgeCLI "$APP/Contents/Resources/ledge"
-cp AppIcon.icns            "$APP/Contents/Resources/AppIcon.icns"
+cp "$BINARY"     "$APP/Contents/MacOS/Ledge"
+cp AppIcon.icns  "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -60,7 +46,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key>          <string>Ledge</string>
     <key>CFBundleIdentifier</key>           <string>com.tomshafer.ledge</string>
     <key>CFBundleVersion</key>              <string>${LEDGE_BUILD}</string>
-    <key>CFBundleShortVersionString</key>   <string>${LEDGE_VERSION}</string>
+    <key>CFBundleShortVersionString</key>   <string>${SHORT_VERSION}</string>
     <key>CFBundleExecutable</key>           <string>Ledge</string>
     <key>CFBundlePackageType</key>          <string>APPL</string>
     <key>CFBundleSupportedPlatforms</key>   <array><string>MacOSX</string></array>
@@ -81,38 +67,40 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-if [ "$SIGN_IDENTITY" = "-" ]; then
-  # Ad-hoc sign so Automation/Calendar permissions bind to a stable identity.
-  # Nested executables (the ledge CLI) must be signed before the outer bundle.
-  echo "› Ad-hoc signing"
-  codesign --force --sign - "$APP/Contents/Resources/ledge" >/dev/null 2>&1 || true
-  codesign --force --sign - "$APP/Contents/MacOS/Ledge" >/dev/null 2>&1 || true
-  codesign --force --sign - "$APP" >/dev/null 2>&1 || true
-else
-  # Developer ID signing with the hardened runtime, required for notarization.
-  echo "› Signing with: $SIGN_IDENTITY (hardened runtime)"
-  codesign --force --options runtime --timestamp \
-    --sign "$SIGN_IDENTITY" "$APP/Contents/Resources/ledge"
-  codesign --force --options runtime --timestamp \
-    --entitlements Ledge.entitlements \
-    --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/Ledge"
-  codesign --force --options runtime --timestamp \
-    --entitlements Ledge.entitlements \
-    --sign "$SIGN_IDENTITY" "$APP"
-  codesign --verify --deep --strict --verbose=2 "$APP"
-fi
-touch "$APP"
+xattr -cr "$APP" 2>/dev/null || true
+codesign --force --sign - "$APP" >/dev/null 2>&1 || true
 
-if [ "$INSTALL" = "1" ]; then
+if [ "$DIST" = "1" ]; then
+  rm -rf dist
+  mkdir -p dist
+  /bin/mv "$APP" dist/Ledge.app
+  rm -rf "$STAGE"
+
+  echo "› Packaging dist/Ledge-${SHORT_VERSION}.zip"
+  /usr/bin/ditto -c -k --keepParent dist/Ledge.app "dist/Ledge-${SHORT_VERSION}.zip"
+
+  # A DMG alongside the zip: it opens to a window holding Ledge.app next to an
+  # /Applications alias, so installing is one drag rather than "unzip, then
+  # find where it went". UDZO is compressed and read-only.
+  echo "› Packaging dist/Ledge-${SHORT_VERSION}.dmg"
+  DMG_ROOT="$(mktemp -d)"
+  /bin/cp -R dist/Ledge.app "$DMG_ROOT/Ledge.app"
+  /bin/ln -s /Applications "$DMG_ROOT/Applications"
+  /usr/bin/hdiutil create \
+    -volname "Ledge ${SHORT_VERSION}" \
+    -srcfolder "$DMG_ROOT" \
+    -fs HFS+ -format UDZO -ov -quiet \
+    "dist/Ledge-${SHORT_VERSION}.dmg"
+  rm -rf "$DMG_ROOT"
+  echo "› Packaged: dist/Ledge-${SHORT_VERSION}.dmg"
+else
   DEST="/Applications/Ledge.app"
-  echo "› Installing to $DEST (will quit any running Ledge first)"
+  echo "› Installing to $DEST"
   /usr/bin/pkill -x Ledge 2>/dev/null || true
   /bin/sleep 0.3
   rm -rf "$DEST"
   /bin/mv "$APP" "$DEST"
+  rm -rf "$STAGE"
   open "$DEST"
-  echo "› Installed and launched."
-else
-  echo "› Done. Open with:  open '$APP'"
-  echo "  Or run:  $0 --install   to drop it in /Applications."
+  echo "› Installed and launched: $DEST"
 fi

@@ -1,93 +1,85 @@
 name: Release
 
-# Cut a release by pushing a tag like v0.4:
-#   git tag v0.4 && git push origin v0.4
-# Builds a signed + notarized Ledge.dmg and attaches it to a GitHub Release.
-#
-# Requires these repository secrets for a real (notarized) build. Without them
-# the job still runs, producing an ad-hoc-signed DMG (Gatekeeper will warn):
-#   MACOS_CERTIFICATE      base64 of your Developer ID Application .p12
-#   MACOS_CERTIFICATE_PWD  password for that .p12
-#   MACOS_SIGN_IDENTITY    e.g. "Developer ID Application: Tom Shafer (TEAMID)"
-#   KEYCHAIN_PASSWORD      any string; used for the throwaway CI keychain
-#   AC_APPLE_ID            Apple ID email for notarization
-#   AC_TEAM_ID             10-char team id
-#   AC_PASSWORD            app-specific password for that Apple ID
-
+# The VERSION file is the trigger. Bump it in an ordinary commit, push, and
+# this cuts the release: tag, universal build, .zip + .dmg, GitHub release.
+# Push anything that doesn't change VERSION and this job checks, finds the
+# release already exists, and stops. No bot commits, no tags to remember.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Build & Release
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
+      - name: Read the VERSION file
+        id: v
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
 
-      - name: Version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      # secrets.* isn't reliable inside `if:`, so surface it as an output once.
-      - name: Detect signing config
-        id: cfg
-        env:
-          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
-        run: |
-          if [ -n "$SIGN_IDENTITY" ]; then
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No MACOS_SIGN_IDENTITY secret set — building an ad-hoc DMG (not notarized)."
-          fi
-
-      - name: Import Developer ID certificate
-        if: steps.cfg.outputs.signed == 'true'
-        env:
-          CERT: ${{ secrets.MACOS_CERTIFICATE }}
-          CERT_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          echo "$CERT" | base64 --decode > cert.p12
-          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import cert.p12 -k build.keychain -P "$CERT_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
-          rm cert.p12
-
-      - name: Build, notarize, and package DMG
-        env:
-          SIGN_IDENTITY: ${{ steps.cfg.outputs.signed == 'true' && secrets.MACOS_SIGN_IDENTITY || '-' }}
-          NOTARIZE: ${{ steps.cfg.outputs.signed == 'true' && '1' || '0' }}
-          AC_APPLE_ID: ${{ secrets.AC_APPLE_ID }}
-          AC_TEAM_ID: ${{ secrets.AC_TEAM_ID }}
-          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
-          LEDGE_VERSION: ${{ steps.version.outputs.version }}
-          LEDGE_BUILD: ${{ github.run_number }}
-        run: ./make-dmg.sh
-
-      - name: Create or update GitHub Release
+      - name: Has this version already shipped?
+        id: gate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Idempotent: if the release already exists (e.g. it was cut manually
-          # first), just refresh the DMG instead of failing.
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" build/Ledge.dmg --clobber
+          if gh release view "v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "v${{ steps.v.outputs.version }} is already released — nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           else
-            gh release create "$GITHUB_REF_NAME" \
-              --title "Ledge $GITHUB_REF_NAME" \
-              --generate-notes \
-              build/Ledge.dmg
+            echo "v${{ steps.v.outputs.version }} is new — building."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Build universal app, zip and disk image
+        if: steps.gate.outputs.publish == 'true'
+        run: VERSION="${{ steps.v.outputs.version }}" ./make-app.sh --dist
+
+      - name: Verify the disk image
+        if: steps.gate.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          V="${{ steps.v.outputs.version }}"
+          DMG="dist/Ledge-${V}.dmg"
+          test -f "$DMG"
+          # Both architectures, or the download is broken for every Intel Mac.
+          lipo -archs dist/Ledge.app/Contents/MacOS/Ledge | tee /dev/stderr | grep -q x86_64
+          lipo -archs dist/Ledge.app/Contents/MacOS/Ledge | grep -q arm64
+          # Mount it the way a downloader would and confirm the drag-to-install
+          # layout survived packaging: the app plus an /Applications alias.
+          hdiutil attach "$DMG" -nobrowse -quiet -mountpoint /tmp/dmg
+          test -x /tmp/dmg/Ledge.app/Contents/MacOS/Ledge
+          test -L /tmp/dmg/Applications
+          codesign --verify --deep --strict /tmp/dmg/Ledge.app
+          hdiutil detach /tmp/dmg -quiet
+
+      - name: Publish the release
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          V="${{ steps.v.outputs.version }}"
+          gh release create "v$V" \
+            dist/Ledge-*.dmg dist/Ledge-*.zip \
+            --target "$GITHUB_SHA" \
+            --title "Ledge v$V" \
+            --notes-file - <<NOTES
+          [![CI](https://github.com/shaferllc/ledge/actions/workflows/ci.yml/badge.svg)](https://github.com/shaferllc/ledge/actions/workflows/ci.yml)
+
+          **Install:** download the \`.dmg\`, open it, and drag \`Ledge.app\` to the
+          \`Applications\` folder beside it. (The \`.zip\` is the same app, if you
+          prefer it.) Universal — Apple Silicon and Intel, macOS 14+.
+
+          Ledge is ad-hoc signed rather than notarized, so macOS quarantines it
+          on download. Open it once via **System Settings → Privacy & Security →
+          Open Anyway**, or clear the flag yourself:
+
+          \`\`\`
+          xattr -d com.apple.quarantine /Applications/Ledge.app
+          \`\`\`
+          NOTES
